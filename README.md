@@ -6,6 +6,8 @@ Measured analysis of two cache bugs in Claude Code that cause **10-20x token inf
 
 Two client-side cache bugs cause the Anthropic API server to miss cached conversation prefixes, forcing a full rebuild on every turn. This inflates token consumption by 10-20x, exhausting rate limits in minutes instead of hours. Workarounds using only official tools are documented below.
 
+**NEW (April 2, 2026):** Controlled benchmark on v2.1.90 — same machine, same version, same proxy. v2.1.90 standalone shows **dramatic improvement** over v2.1.89: sub-agent cold starts improved from 4-17% → 47-67%, and cache now **recovers to 94-99%** after warming (v2.1.89 never recovered). Total test: 12% usage for 11 scenarios including 79-report parallel analysis. See **[BENCHMARK.md](BENCHMARK.md)** for full data.
+
 ---
 
 ## Root Cause
@@ -86,6 +88,20 @@ After cold start warmup, cache read ratio stabilizes at **95-99%**. This is norm
 | Effective token cost per turn | ~10-20x inflated | ~1x (normal) |
 | Rate limit (Max 20) | 100% in ~70 min | Stable — 14% after extended session |
 
+### npm vs Standalone Binary (v2.1.90) — Cache Comparison
+
+Controlled benchmark on the same machine, same version, same proxy. Full scenarios A-D completed. See **[BENCHMARK.md](BENCHMARK.md)** for methodology and raw data.
+
+| Phase | npm (Node.js) | Standalone (ELF) | Gap |
+|-------|--------------|-----------------|-----|
+| Sub-agent cold start (1-2 req) | **79-87%** | **47-67%** | -16 to -40pp |
+| Sub-agent warmed (5+ req) | 87-94% | **94-99%** | **~0pp** |
+| Stable session | 97-99.8% | 95-99.7% | ~0pp |
+| Overall session | 86.4% | **86.2%** | ~0pp |
+| Usage consumed | **7%** (7 scenarios incl. 79-report read) | **5%** (4 scenarios A-D) | Comparable |
+
+**Key insight:** v2.1.90 standalone **recovers** from initial cache misses — once warmed, it matches npm. v2.1.89 never recovered (sustained 4-17%). Both v2.1.90 installations are now viable for production use. See [BENCHMARK.md](BENCHMARK.md) for the complete warming curve.
+
 ---
 
 ## Usage Precautions (Updated April 2, 2026)
@@ -99,7 +115,8 @@ Beyond the cache bugs, several Claude Code behaviors significantly accelerate to
 | `--resume` | Replays **entire** conversation history as billable input tokens. Opaque thinking block signatures (base64) are included in the replay. | 500K+ tokens burned on a single resume of a long session ([#42260](https://github.com/anthropics/claude-code/issues/42260)) |
 | `/dream` | Triggers background API calls that consume tokens without visible output | Silent drain, difficult to detect |
 | `/insights` | Same as `/dream` — hidden background token consumption | Reported to cause "insane token usage" ([#40438](https://github.com/anthropics/claude-code/issues/40438)) |
-| v2.1.89 (latest) | Cache prefix bug still present + terminal content rendering regression on Linux/IntelliJ | All token inflation issues persist + broken UI ([#42244](https://github.com/anthropics/claude-code/issues/42244)) |
+| v2.1.89 standalone binary | Sentinel cache bug — sub-agent cache read drops to 4-17% | 3-4x token waste during parallel agent workloads |
+| v2.1.90 standalone binary | Sentinel bug **partially mitigated** — sub-agent cold start improved to 47-67% ([benchmark](BENCHMARK.md)) | ~1.5-2x overhead on sub-agents (down from 3-4x) |
 
 ### Behaviors to Use with Caution
 
@@ -122,6 +139,19 @@ Even with cache working perfectly (91-99% read ratio), multiple users report fas
 ## Safe Workarounds
 
 These use only official tools and releases — no binary modification required.
+
+### 0. Disable auto-update (do this first)
+
+```jsonc
+// ~/.claude/settings.json
+{
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  }
+}
+```
+
+Pin your version to prevent surprise regressions. v2.1.90 shows major cache improvements — a bad update could undo this. Re-enable only after Anthropic confirms a full fix.
 
 ### 1. Use the npm version (avoids Bug 1)
 
@@ -198,7 +228,7 @@ If most of your sessions show low read ratios, you are likely affected by one or
 
 ### Community Engagement
 
-As of April 2, 2026, I've posted root cause analysis + precautions across **96 comments on 80+ issues**. Anthropic official response count: **zero** (2+ months of silence across all rate-limit issues).
+As of April 2, 2026, I've posted root cause analysis + precautions across **100+ comments on 80 unique issues**. Anthropic official response count: **zero** (2+ months of silence across all rate-limit issues).
 
 ## Community References
 
@@ -212,9 +242,11 @@ As of April 2, 2026, I've posted root cause analysis + precautions across **96 c
 ## Environment
 
 - **Plan:** Max 20 ($200/mo)
-- **OS:** Linux (Ubuntu)
-- **Versions tested:** v2.1.89 (affected), v2.1.81 (with workarounds), v2.1.68 (not affected)
+- **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
+- **Versions tested:** v2.1.90 (npm + standalone benchmark), v2.1.89 (affected), v2.1.81 (with workarounds), v2.1.68 (not affected)
+- **Monitoring:** cc-relay transparent proxy (source-audited, zero request modification)
 - **Date:** April 2, 2026 (updated)
+- **Benchmark:** [BENCHMARK.md](BENCHMARK.md) — npm vs standalone controlled comparison
 
 ---
 
