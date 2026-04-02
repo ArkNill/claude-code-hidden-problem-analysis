@@ -248,7 +248,29 @@ The standalone binary ships as an ELF executable built with a custom Bun fork. T
 - Sub-agent cold starts still show a gap (47% vs 80%), but v2.1.90 is significantly better than v2.1.89 (47% vs 14%)
 - The gap closes as sub-agents warm up (72-88% after a few requests)
 
-**Interpretation:** Anthropic appears to have partially addressed the Sentinel bug in v2.1.90. The cache prefix corruption is less severe — it no longer produces catastrophic 4-17% read ratios on every sub-agent turn. However, fresh context initialization still performs ~20-30pp worse than the npm version, suggesting the underlying mechanism is still present but attenuated.
+**Interpretation:** Anthropic has partially addressed the Sentinel bug in v2.1.90. The cache prefix corruption is less severe — it no longer produces catastrophic 4-17% read ratios on every sub-agent turn. However, fresh context initialization still performs ~20-30pp worse than the npm version, suggesting the underlying mechanism is still present but attenuated.
+
+### Official Changelog Correlation
+
+The [v2.1.89-90 changelog](https://code.claude.com/docs/en/changelog) confirms multiple cache-related fixes that align with our benchmark observations:
+
+**v2.1.89:**
+- *"Fixed prompt cache misses in long sessions caused by tool schema bytes changing mid-session"* — directly addresses cache key instability
+- *"Fixed StructuredOutput schema cache bug causing ~50% failure rate when using multiple schemas"*
+- *"Fixed autocompact thrash loop"* — stops infinite compaction draining tokens
+- *"Fixed memory leak where large JSON inputs were retained as LRU cache keys"*
+- *"Fixed nested CLAUDE.md files being re-injected dozens of times"*
+
+**v2.1.90:**
+- *"Fixed --resume causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)"* — **Bug 2 official fix**
+- *"Improved performance: eliminated per-turn JSON.stringify of MCP tool schemas on cache-key lookup"* — stabilizes cache keys across turns
+- *"Fixed infinite loop where rate-limit options dialog would repeatedly auto-open"*
+
+**Anthropic staff acknowledgment (via X, not GitHub):**
+- Lydia Hallie (Product): *"We shipped some fixes on the Claude Code side that should help"* — [Post](https://x.com/lydiahallie/status/2039107775314428189)
+- Thariq Shihipar (Technical Staff): Confirmed prompt caching bugs being investigated — [Post](https://x.com/trq212/status/2027232172810416493)
+
+Note: Anthropic has not responded to any of the 82 GitHub issues (2+ months of silence). All communication has been via personal X accounts and the changelog.
 
 ### Proxy Ruled Out
 
@@ -317,6 +339,17 @@ To reproduce this benchmark:
 5. Focus on **sub-agent requests** — that's where the difference is most dramatic
 
 The key insight: **stable main-session cache looks similar between both installations**. The bug primarily manifests during **fresh context creation** (sub-agents, new sessions, post-compaction). If you only test single-session chat, you may miss the difference entirely.
+
+---
+
+## References
+
+- [Claude Code Official Changelog](https://code.claude.com/docs/en/changelog) — v2.1.89-90 cache fix entries
+- [Lydia Hallie (Anthropic) — "shipped some fixes"](https://x.com/lydiahallie/status/2039107775314428189)
+- [Thariq Shihipar (Anthropic) — prompt caching bug acknowledgment](https://x.com/trq212/status/2027232172810416493)
+- [BENCHMARK.md](BENCHMARK.md) — this file
+- [README.md](README.md) — overview, recommendations, 82-issue list
+- [TIMELINE.md](TIMELINE.md) — 14-month chronicle of rate limit issues
 
 ---
 
