@@ -1,149 +1,33 @@
 # Claude Code Cache Bug Analysis
 
-Measured analysis of two cache bugs in Claude Code that cause **10-20x token inflation**, leading to rapid rate limit exhaustion on paid plans (Max 5/20).
+Measured analysis of cache bugs in Claude Code that caused **10-20x token inflation** on paid plans (Max 5/20). Includes controlled benchmarks comparing npm vs standalone binary installations.
 
-## TL;DR
-
-Two client-side cache bugs cause the Anthropic API server to miss cached conversation prefixes, forcing a full rebuild on every turn. This inflates token consumption by 10-20x, exhausting rate limits in minutes instead of hours. Workarounds using only official tools are documented below.
-
-**NEW (April 2, 2026):** Controlled benchmark on v2.1.90 — same machine, same version, same proxy. v2.1.90 standalone shows **dramatic improvement** over v2.1.89: sub-agent cold starts improved from 4-17% → 47-67%, and cache now **recovers to 94-99%** after warming (v2.1.89 never recovered). Total test: 12% usage for 11 scenarios including 79-report parallel analysis. See **[BENCHMARK.md](BENCHMARK.md)** for full data.
+> **Last updated:** April 2, 2026
 
 ---
 
-## Root Cause
+## Current Status: v2.1.90 — Stabilized
 
-Identified through community reverse engineering ([Reddit analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)):
+**v2.1.90 has largely resolved the cache issue.** Both npm and standalone binary installations now achieve **86%+ overall cache read ratio** and **95-99% in stable sessions**. This is a dramatic improvement from v2.1.89, where standalone binary sessions sustained 4-34% cache read.
 
-### Bug 1 — Sentinel Replacement (standalone binary only)
+| Version | Installation | Cache Read (stable) | Sub-agent Cold Start | Verdict |
+|---------|-------------|--------------------|--------------------|---------|
+| **v2.1.90** | **npm (Node.js)** | **95-99.8%** | **79-87%** | **Optimal** |
+| **v2.1.90** | **Standalone (ELF)** | **95-99.7%** | **47-67%** (recovers to 94-99%) | **Good** |
+| v2.1.89 | Standalone (ELF) | 90-99% | **4-17%** (never recovers) | **Avoid** |
+| v2.1.68 | npm | Normal | Normal | Safe but outdated |
 
-**GitHub Issue:** [anthropics/claude-code#40524](https://github.com/anthropics/claude-code/issues/40524)
+**If you're on v2.1.89 or earlier standalone, update to v2.1.90 immediately.** The single most impactful action you can take.
 
-The standalone binary ships with a custom Bun fork that contains a `cch=00000` sentinel replacement mechanism. When conversation content includes certain internal strings, the sentinel in `messages` gets incorrectly substituted — breaking the cache prefix.
+### What to Do Right Now
 
-**Result:** Full cache rebuild on every API call.
-
-**Scope:** Standalone binary only. The npm version (`npx @anthropic-ai/claude-code`) does not contain this logic.
-
-### Bug 2 — Resume Cache Breakage (v2.1.69+)
-
-**GitHub Issue:** [anthropics/claude-code#34629](https://github.com/anthropics/claude-code/issues/34629)
-
-Starting from v2.1.69, `deferred_tools_delta` was introduced in the message structure. When resuming a session (`--resume`), the first message's structure doesn't match what the server cached — resulting in a complete cache miss.
-
-**Impact:** On a 500K token conversation, a single resume costs ~$0.15 in quota.
-
-### Combined Effect
-
-When both bugs are active, the cache hit rate drops to near 0%. Every token on every turn is billed at full price — which is why rate limits are exhausted in minutes instead of hours.
-
----
-
-## Measured Data
-
-### Methodology
-
-I set up a transparent local monitoring proxy using [`ANTHROPIC_BASE_URL`](https://docs.anthropic.com/en/docs/claude-code/settings#environment-variables) (official environment variable) to log `cache_creation_input_tokens` and `cache_read_input_tokens` from each API response.
-
-This is a pass-through proxy that does not modify requests or responses — it only reads the usage metadata from API responses for logging. `ANTHROPIC_BASE_URL` is documented by Anthropic for proxy/gateway routing.
-
-### Before Workarounds — Affected Sessions (v2.1.89)
-
-Audited via session JSONL files using `cache_creation_input_tokens` / `cache_read_input_tokens`:
-
-| Session | Turns | Cache Read Ratio | Status |
-|---------|-------|-----------------|--------|
-| Session A | 168 | **4.3%** | poor |
-| Session B | 89 | **22.6%** | poor |
-| Session C | 233 | **34.6%** | poor |
-
-At 4.3% cache read ratio, nearly every token is billed at full price — roughly **20x the expected cost per turn**. These "poor" sessions were the primary cause of rate limit exhaustion.
-
-### After Workarounds — Per-Request Proxy Log
-
-| Request | Cache Creation | Cache Read | Read Ratio |
-|---------|---------------|------------|------------|
-| 1 (cold start) | 13,535 | 21,125 | 60.9% |
-| 2 | 3,827 | 34,660 | 90.1% |
-| 3 | 693 | 38,487 | 98.2% |
-| 4 | 4,839 | 39,180 | 89.0% |
-| 5 | 1,270 | 44,019 | 97.2% |
-| 6 | 247 | 45,289 | 99.5% |
-| 7 | 443 | 45,536 | 99.0% |
-| 8 | 257 | 45,979 | 99.4% |
-| 9 | 1,025 | 46,236 | 97.8% |
-| 10 | 659 | 47,261 | 98.6% |
-| 11 | 655 | 47,920 | 98.7% |
-| 12 | 1,335 | 48,575 | 97.3% |
-| 13 | 1,417 | 49,910 | 97.2% |
-| 14 | 2,467 | 51,327 | 95.4% |
-| 15 | 2,538 | 53,794 | **95.5%** |
-
-After cold start warmup, cache read ratio stabilizes at **95-99%**. This is normal behavior — the server caches the conversation prefix and only bills the delta on each turn.
-
-### Summary
-
-| Metric | Before (affected) | After (workarounds) |
-|--------|-------------------|---------------------|
-| Cache read ratio | 4.3% - 34.6% | 89% - 99.5% |
-| Effective token cost per turn | ~10-20x inflated | ~1x (normal) |
-| Rate limit (Max 20) | 100% in ~70 min | Stable — 14% after extended session |
-
-### npm vs Standalone Binary (v2.1.90) — Cache Comparison
-
-Controlled benchmark on the same machine, same version, same proxy. Full scenarios A-D completed. See **[BENCHMARK.md](BENCHMARK.md)** for methodology and raw data.
-
-| Phase | npm (Node.js) | Standalone (ELF) | Gap |
-|-------|--------------|-----------------|-----|
-| Sub-agent cold start (1-2 req) | **79-87%** | **47-67%** | -16 to -40pp |
-| Sub-agent warmed (5+ req) | 87-94% | **94-99%** | **~0pp** |
-| Stable session | 97-99.8% | 95-99.7% | ~0pp |
-| Overall session | 86.4% | **86.2%** | ~0pp |
-| Usage consumed | **7%** (7 scenarios incl. 79-report read) | **5%** (4 scenarios A-D) | Comparable |
-
-**Key insight:** v2.1.90 standalone **recovers** from initial cache misses — once warmed, it matches npm. v2.1.89 never recovered (sustained 4-17%). Both v2.1.90 installations are now viable for production use. See [BENCHMARK.md](BENCHMARK.md) for the complete warming curve.
-
----
-
-## Usage Precautions (Updated April 2, 2026)
-
-Beyond the cache bugs, several Claude Code behaviors significantly accelerate token consumption. These apply regardless of whether the cache fix is in place.
-
-### Behaviors to Avoid
-
-| Behavior | Why | Measured Impact |
-|----------|-----|-----------------|
-| `--resume` | Replays **entire** conversation history as billable input tokens. Opaque thinking block signatures (base64) are included in the replay. | 500K+ tokens burned on a single resume of a long session ([#42260](https://github.com/anthropics/claude-code/issues/42260)) |
-| `/dream` | Triggers background API calls that consume tokens without visible output | Silent drain, difficult to detect |
-| `/insights` | Same as `/dream` — hidden background token consumption | Reported to cause "insane token usage" ([#40438](https://github.com/anthropics/claude-code/issues/40438)) |
-| v2.1.89 standalone binary | Sentinel cache bug — sub-agent cache read drops to 4-17% | 3-4x token waste during parallel agent workloads |
-| v2.1.90 standalone binary | Sentinel bug **partially mitigated** — sub-agent cold start improved to 47-67% ([benchmark](BENCHMARK.md)) | ~1.5-2x overhead on sub-agents (down from 3-4x) |
-
-### Behaviors to Use with Caution
-
-| Behavior | Why | Measured Data |
-|----------|-----|---------------|
-| Sub-agents (Agent tool, Haiku) | Each Haiku sub-agent call creates a **fresh context** with **0% cache read**. No cache sharing with parent session. | **317K input tokens across 31 sub-agent calls** (measured via proxy) |
-| Multiple terminals | Each terminal is an independent session with its own context. No shared quota pacing. | ~2x drain rate with 2 active terminals |
-| Large CLAUDE.md / context files | Sent as input on **every single turn**. With broken cache, billed at full price each time. | 30KB CLAUDE.md = 30KB × N turns fully billed |
-| Slash commands that rewrite files | Trigger large context rebuilds mid-session | 20-27% of session budget per invocation reported |
-| Session start / compaction | `cache_creation` spikes are structural and unavoidable at these boundaries | Normal — budget for it |
-
-### Server-Side Factor
-
-Even with cache working perfectly (91-99% read ratio), multiple users report faster quota drain compared to 2-3 weeks ago. This suggests a **server-side change** in rate limit calculation (pool size, cost weighting, or both) — not fixable client-side. The precautions above help stretch whatever budget remains.
-
-**Related:** Shared billing methods can share rate limit pools — if another account uses the same payment method, their usage counts against yours ([#41881](https://github.com/anthropics/claude-code/issues/41881)). Source code analysis confirms that `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid` (not `accountUuid`), meaning quota and overage credits are managed at the **organization level**, not the individual account level.
-
----
-
-## Safe Workarounds
-
-These use only official tools and releases — no binary modification required.
-
-### 0. Disable auto-update (do this first)
+1. **Disable auto-update** — pin v2.1.90 until Anthropic confirms a full fix
+2. **Update to v2.1.90** if you haven't already
+3. **Avoid `--resume`** — still causes full context replay regardless of version
+4. **Monitor cache** with a transparent proxy if you want to verify
 
 ```jsonc
-// ~/.claude/settings.json
+// ~/.claude/settings.json — disable auto-update
 {
   "env": {
     "DISABLE_AUTOUPDATER": "1"
@@ -151,52 +35,203 @@ These use only official tools and releases — no binary modification required.
 }
 ```
 
-Pin your version to prevent surprise regressions. v2.1.90 shows major cache improvements — a bad update could undo this. Re-enable only after Anthropic confirms a full fix.
+---
 
-### 1. Use the npm version (avoids Bug 1)
+## npm vs Standalone Binary — Which Should I Use?
+
+Claude Code ships in two forms. The choice matters for cache efficiency:
+
+### Standalone Binary (ELF)
+
+- Installed via `curl -fsSL https://claude.ai/install.sh | bash`
+- Ships as a **single ELF 64-bit executable** (~228MB) with embedded Bun runtime
+- Contains the Sentinel replacement mechanism (`cch=00000`) that can corrupt cache prefixes
+- **v2.1.90 status:** Sentinel bug **partially mitigated** — cold starts still lag but cache recovers quickly
+
+### npm Package (Node.js)
+
+- Installed via `npm install -g @anthropic-ai/claude-code`
+- Ships as a **bundled JavaScript file** (`cli.js`, ~13MB) executed by Node.js
+- **Does not contain** the Sentinel replacement logic — immune to Bug 1
+- Dependencies are bundled inline (zero external npm packages at runtime, no supply chain risk)
+
+### Head-to-Head Benchmark (v2.1.90, same machine, same proxy)
+
+| Metric | npm | Standalone | Winner |
+|--------|-----|-----------|--------|
+| Overall cache read % | 86.4% | 86.2% | Tie |
+| Stable session | 95-99.8% | 95-99.7% | Tie |
+| Sub-agent cold start | 79-87% | 47-67% | npm |
+| Sub-agent warmed (5+ req) | 87-94% | 94-99% | Tie |
+| Usage for full test suite | 7% of Max 20 | 5% of Max 20 | Tie |
+
+**Bottom line:** npm is marginally better for sub-agent-heavy workflows. For everything else, they're equivalent on v2.1.90. See **[BENCHMARK.md](BENCHMARK.md)** for raw data and methodology.
+
+### Coexistence Setup
+
+Both can coexist on the same machine at different paths:
 
 ```bash
-npx @anthropic-ai/claude-code
+# npm install (does NOT affect standalone binary)
+npm install -g @anthropic-ai/claude-code
+
+# Check what you have
+file $(which claude)
+# ELF 64-bit = standalone binary
+# symbolic link to .../cli.js = npm
+
+# If both are installed, use aliases to pick:
+alias claude-npm="ANTHROPIC_BASE_URL=http://localhost:8080 /path/to/npm/claude"
+alias claude-bin="ANTHROPIC_BASE_URL=http://localhost:8080 /path/to/standalone/claude"
 ```
 
-The npm package does not contain the sentinel replacement logic that causes Bug 1. This is the simplest workaround.
+---
 
-### 2. Downgrade to v2.1.68 (avoids both bugs)
+## Root Cause
+
+Two client-side cache bugs, identified through community reverse engineering ([Reddit analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)):
+
+### Bug 1 — Sentinel Replacement (standalone binary only)
+
+**GitHub Issue:** [anthropics/claude-code#40524](https://github.com/anthropics/claude-code/issues/40524)
+
+The standalone binary's embedded Bun fork contains a `cch=00000` sentinel replacement mechanism. Under certain conditions, the sentinel in `messages` gets incorrectly substituted — breaking the cache prefix and forcing a full rebuild.
+
+- **v2.1.89:** Catastrophic — cache read drops to 4-17%, never recovers
+- **v2.1.90:** Partially mitigated — cold start still affected (47-67%), but recovers to 94-99% after warming
+- **npm:** Not affected — the JavaScript bundle does not contain this logic
+
+### Bug 2 — Resume Cache Breakage (v2.1.69+)
+
+**GitHub Issue:** [anthropics/claude-code#34629](https://github.com/anthropics/claude-code/issues/34629)
+
+`deferred_tools_delta` (introduced in v2.1.69) causes the first message's structure on `--resume` to not match the server's cached version — resulting in a complete cache miss. On a 500K token conversation, a single resume costs ~$0.15 in quota.
+
+**Applies to both npm and standalone.** Avoid `--resume` entirely.
+
+---
+
+## Measured Data
+
+### Methodology
+
+Transparent local monitoring proxy using [`ANTHROPIC_BASE_URL`](https://docs.anthropic.com/en/docs/claude-code/settings#environment-variables) (official environment variable). The proxy logs `cache_creation_input_tokens` and `cache_read_input_tokens` from each API response without modifying requests or responses (source-audited).
+
+### v2.1.89 Standalone — Before Fix (Broken)
+
+| Session | Turns | Cache Read Ratio | Status |
+|---------|-------|-----------------|--------|
+| Session A | 168 | **4.3%** | poor — 20x cost inflation |
+| Session B | 89 | **22.6%** | poor |
+| Session C | 233 | **34.6%** | poor |
+
+### v2.1.90 — After Fix (Both Installations)
+
+| Metric | npm (Node.js) | Standalone (ELF) |
+|--------|--------------|-----------------|
+| Scenarios completed | 7 (incl. 79-report parallel agent read) | 4 (forge, browsegrab, feedkit 5-turn, 3-project parallel) |
+| Usage consumed | 28% → 35% (**7%**) | 35% → 40% (**5%**) |
+| Overall cache read | **86.4%** | **86.2%** |
+| Stable session read | **95-99.8%** | **95-99.7%** |
+
+Full per-request data and warming curves: **[BENCHMARK.md](BENCHMARK.md)**
+
+### Version Comparison Summary
+
+| Metric | v2.1.89 Standalone | v2.1.90 Standalone | v2.1.90 npm |
+|--------|-------------------|-------------------|-------------|
+| Sub-agent cold start | **4-17%** (never recovers) | **47-67%** (recovers to 94-99%) | **79-87%** |
+| Stable session | 90-99% | **95-99.7%** | **95-99.8%** |
+| Usage for test suite | 100% in ~70 min | **5%** | **7%** |
+| Verdict | **Avoid** | **Good** | **Optimal** |
+
+---
+
+## Usage Precautions
+
+### Behaviors to Avoid
+
+| Behavior | Why | Measured Impact |
+|----------|-----|-----------------|
+| `--resume` | Replays entire conversation history as billable input including opaque thinking block signatures | 500K+ tokens per resume ([#42260](https://github.com/anthropics/claude-code/issues/42260)) |
+| `/dream`, `/insights` | Background API calls consume tokens without visible output | Silent drain ([#40438](https://github.com/anthropics/claude-code/issues/40438)) |
+| v2.1.89 or earlier standalone | Sentinel bug causes sustained 4-17% cache read | 3-4x token waste, never recovers |
+| Enabling auto-update | Future versions may reintroduce regressions | Pin v2.1.90 until official fix confirmed |
+
+### Behaviors to Use with Caution
+
+| Behavior | Why | Recommendation |
+|----------|-----|----------------|
+| Parallel sub-agents (single terminal) | Each agent starts with fresh context, but warms up and shares billing context | **Safe** — agents warm up within 1-2 requests |
+| Multiple terminals simultaneously | Each terminal is a fully independent session — no cache sharing, parallel quota drain | **Limit to one active terminal** |
+| Large CLAUDE.md / context files | Sent on every turn — with broken cache, billed at full price each time | Keep lean; less critical on v2.1.90 with working cache |
+| Session start / compaction | `cache_creation` spikes are structural and unavoidable | Normal — budget for it |
+
+### Server-Side Factor (Unresolved)
+
+Even with cache working perfectly (91-99%), multiple users report faster quota drain compared to 2-3 weeks ago. This suggests a **server-side change** in rate limit calculation — not fixable client-side.
+
+**Org-level quota sharing:** Accounts on the same billing method share rate limit pools ([#41881](https://github.com/anthropics/claude-code/issues/41881)). Source code confirms `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`.
+
+---
+
+## Quick Setup Guide
+
+### For New Users
 
 ```bash
-npm install -g @anthropic-ai/claude-code@2.1.68
+# 1. Install via npm (recommended — no Sentinel bug)
+npm install -g @anthropic-ai/claude-code
+
+# 2. Disable auto-update
+cat > ~/.claude/settings.json << 'EOF'
+{
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  }
+}
+EOF
+
+# 3. Verify
+claude --version   # should show 2.1.90
+file $(which claude)   # should show symbolic link to cli.js
 ```
 
-v2.1.68 predates the `deferred_tools_delta` change (Bug 2). You lose recent features but avoid both cache regressions.
+### For Existing Standalone Users
 
-### 3. Avoid session resume — always start fresh
+```bash
+# 1. Update to v2.1.90
+claude update
 
-Start fresh sessions instead of using `--resume`. Bug 2 triggers specifically on session resume where the message structure mismatch causes a full cache miss. Use a structured CLAUDE.md to restore context instead.
+# 2. Disable auto-update (add to existing settings.json)
+# Add "DISABLE_AUTOUPDATER": "1" to the "env" section
 
-### 4. Monitor your cache efficiency
+# 3. Verify
+claude --version   # should show 2.1.90
+```
 
-Set up a local transparent proxy using `ANTHROPIC_BASE_URL` ([official env var](https://docs.anthropic.com/en/docs/claude-code/settings#environment-variables)) to log cache metrics from API responses. This lets you verify whether your sessions are healthy or affected.
+### Optional: Monitor Cache Efficiency
 
-Example: route through `http://localhost:8080` and parse `cache_creation_input_tokens` / `cache_read_input_tokens` from the response `usage` object.
+Set up a transparent proxy using `ANTHROPIC_BASE_URL` to log cache metrics:
 
-### 5. Keep conversations short, context lean
+```bash
+# Route through local proxy for monitoring
+ANTHROPIC_BASE_URL=http://localhost:8080 claude
 
-Shorter conversations = smaller cache prefix = less damage when cache misses occur. If you notice rapid usage consumption, end the session and start fresh. Keep CLAUDE.md small — every byte is resent every turn.
-
-### 6. Minimize sub-agents and parallel terminals
-
-Use sub-agents only when essential (each one is a fresh uncached context). Run one terminal at a time to avoid parallel quota drain.
+# Parse cache_creation_input_tokens / cache_read_input_tokens from responses
+# Healthy: read ratio > 80%  |  Affected: read ratio < 40%
+```
 
 ---
 
 ## How to Check If You're Affected
 
-The session JSONL files in `~/.claude/projects/` contain usage data for each turn. Look for the `cache_creation_input_tokens` and `cache_read_input_tokens` fields:
+The session JSONL files in `~/.claude/projects/` contain usage data for each turn:
 
 - **Healthy session:** `cache_read` >> `cache_creation` (read ratio > 80%)
 - **Affected session:** `cache_creation` >> `cache_read` (read ratio < 40%)
 
-If most of your sessions show low read ratios, you are likely affected by one or both bugs.
+If most sessions show low read ratios, you're likely on an affected version. Update to v2.1.90.
 
 ---
 
@@ -211,42 +246,42 @@ If most of your sessions show low read ratios, you are likely affected by one or
 - [#41663](https://github.com/anthropics/claude-code/issues/41663) — Prompt cache causes excessive token consumption
 - [#41607](https://github.com/anthropics/claude-code/issues/41607) — Duplicate compaction subagents (5x identical work)
 - [#41767](https://github.com/anthropics/claude-code/issues/41767) — Auto-compact loops in v2.1.89
-- [#41750](https://github.com/anthropics/claude-code/issues/41750) — Context management fires on every turn
 - [#42260](https://github.com/anthropics/claude-code/issues/42260) — Resume replays thinking signatures as input tokens
 - [#42256](https://github.com/anthropics/claude-code/issues/42256) — Read tool re-sends oversized images every message
-- [#42290](https://github.com/anthropics/claude-code/issues/42290) — /export truncates + /resume delivers incomplete context
-
-### Regressions (v2.1.89)
-- [#42244](https://github.com/anthropics/claude-code/issues/42244) — Terminal content disappearing (Linux/IntelliJ)
-- [#42240](https://github.com/anthropics/claude-code/issues/42240) — Slash command autocomplete broken
 
 ### Rate Limit Reports (major threads)
 - [#16157](https://github.com/anthropics/claude-code/issues/16157) — Instantly hitting usage limits (1400+ comments)
 - [#38335](https://github.com/anthropics/claude-code/issues/38335) — Session limits exhausted abnormally fast (300+ comments)
-- [#41930](https://github.com/anthropics/claude-code/issues/41930) — Critical: Widespread abnormal usage drain — multiple root causes
 - [#41788](https://github.com/anthropics/claude-code/issues/41788) — My original report (Max 20, 100% in ~70 min)
 
 ### Community Engagement
 
-As of April 2, 2026, I've posted root cause analysis + precautions across **100+ comments on 80 unique issues**. Anthropic official response count: **zero** (2+ months of silence across all rate-limit issues).
+As of April 2, 2026: **100+ comments on 80 unique issues**. Anthropic official response count: **zero** (2+ months of silence).
 
 ## Community References
 
 - [Reddit: Reverse engineering analysis of Claude Code cache bugs](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)
-- [cc-cache-fix](https://github.com/Rangizingo/cc-cache-fix) — Community-developed cache patch + test toolkit (patches both Bug 1 and Bug 2)
+- [cc-cache-fix](https://github.com/Rangizingo/cc-cache-fix) — Community cache patch + test toolkit
 - [cc-diag](https://github.com/nicobailey/cc-diag) — mitmproxy-based Claude Code traffic analysis
 - [claude-code-router](https://github.com/pathintegral-institute/claude-code-router) — Transparent proxy for Claude Code
 
 ---
 
+## Files in This Repo
+
+| File | Description |
+|------|-------------|
+| [README.md](README.md) | This file — overview, current status, and recommendations |
+| [BENCHMARK.md](BENCHMARK.md) | Controlled npm vs standalone benchmark with raw per-request data |
+| [TIMELINE.md](TIMELINE.md) | 14-month chronicle of rate limit issues (Phase 1-9, 50+ issues) |
+
 ## Environment
 
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
-- **Versions tested:** v2.1.90 (npm + standalone benchmark), v2.1.89 (affected), v2.1.81 (with workarounds), v2.1.68 (not affected)
+- **Versions tested:** v2.1.90 (npm + standalone benchmark), v2.1.89 (affected), v2.1.81 (patched workaround), v2.1.68 (pre-bug baseline)
 - **Monitoring:** cc-relay transparent proxy (source-audited, zero request modification)
-- **Date:** April 2, 2026 (updated)
-- **Benchmark:** [BENCHMARK.md](BENCHMARK.md) — npm vs standalone controlled comparison
+- **Date:** April 2, 2026
 
 ---
 
