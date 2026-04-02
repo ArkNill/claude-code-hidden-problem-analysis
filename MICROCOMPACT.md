@@ -84,23 +84,63 @@ This chain explains several otherwise-puzzling observations:
 - `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` doesn't help (microcompact bypasses it)
 - The drain appears intermittent (GrowthBook A/B testing controls who gets hit)
 
+## Local Reproduction (In Progress)
+
+### Setup
+
+Proxy-based request body scanner (cc-relay + `ANTHROPIC_BASE_URL`) detects `[Old tool result content cleared]` in outgoing API requests before they leave the machine. GrowthBook file watcher diffs `~/.claude.json` every 10 seconds.
+
+### Preliminary Results (April 3, 2026)
+
+Initial observation during a normal working session (not a dedicated stress test):
+
+- 17 clearing events detected over ~4 minutes
+- Same 7 message indices cleared on every API call
+- GrowthBook disk cache: **no changes** during the entire observation window
+
+What this *tentatively* suggests:
+- The clearing is **client-side** (marker present in outgoing request body)
+- GrowthBook flags don't visibly change at runtime (at least not in the disk cache)
+
+### What's Still Missing
+
+This data is from a short observation window (~4 min) during normal use. Before drawing firm conclusions, the following needs to be verified:
+
+1. **Long session behavior** — do new clearing indices appear over 30+ minutes of heavy tool use? Sn3th reports effective context dropping to ~40-80K, which implies clearing expands well beyond 7 indices
+2. **First clearing moment** — need to capture the exact turn where clearing first triggers and measure the cache miss spike at that point
+3. **Clearing trigger conditions** — what determines which tool results get targeted? Message age? Token size? Tool type? Need to correlate cleared indices with message content
+4. **Cache impact quantification** — how large is the cache miss when clearing first occurs vs when it stabilizes? Need before/after cache ratios at the transition point
+5. **Binary code path identification** — search for the literal string `Old tool result content cleared` in the decompiled binary to find the responsible code path and its gate conditions
+6. **GrowthBook network interception** — disk cache watcher only proves the cache doesn't change; the SDK might evaluate differently in-memory without writing back. Need to intercept actual GrowthBook API calls or SDK evaluation
+
+### Next Steps (April 4)
+
+- [ ] Run a dedicated 30+ minute heavy tool-use session with full detection active
+- [ ] Capture the session from cold start to observe the first clearing event
+- [ ] Log which tool results get cleared (content type, size, age) to identify the selection criteria
+- [ ] Set up mitmproxy or equivalent to intercept GrowthBook SDK network calls
+- [ ] Locate the code path in the binary responsible for clearing
+
 ## Open Questions
 
 ### 1. GrowthBook Runtime vs Disk Cache Divergence
 
 The disk cache in `~/.claude.json` is a snapshot of the last GrowthBook evaluation. But GrowthBook evaluates features using per-session attributes (user ID, plan tier, session ID, timestamp, etc.) at runtime. If the CLI re-evaluates mid-session with different attributes — after crossing a token threshold, or based on session duration — the disk cache would never reflect it.
 
-**Test:** Intercept GrowthBook SDK calls (or the remote eval API endpoint) during a session where stripping is actively happening, and compare runtime feature values against the disk cache.
+Preliminary local testing shows no disk cache changes during active clearing, but this doesn't rule out in-memory divergence.
+
+**Test:** Intercept GrowthBook SDK calls (or the GrowthBook API endpoint) during a session where stripping is actively happening, and compare runtime feature values against the disk cache.
 
 ### 2. Server-Side Content Clearing
 
-When `[Old tool result content cleared]` appears, is it present in the raw API response from Anthropic, or does the CLI insert it locally? If the API response already has the content cleared, no client-side GrowthBook gate matters — the content never reaches the client.
+When `[Old tool result content cleared]` appears, is it present in the raw API response from Anthropic, or does the CLI insert it locally?
 
-**Test:** Run a transparent logging proxy (`ANTHROPIC_BASE_URL`) and capture the raw response body when stripping is observed. Check whether the tool result content is intact in the API response but cleared by the CLI, or already cleared server-side.
+Preliminary evidence points to **client-side** (marker found in outgoing request body), but needs verification with a longer session and confirmed first-clearing capture.
 
 ### 3. The Fourth Path
 
-If runtime eval matches disk cache (all disabled) and the API response contains full content, there's a compaction path not gated by any of the three known GrowthBook flags. Candidates:
+All three documented GrowthBook gates are off, yet clearing occurs. Confirmed locally. Candidates:
+- A code path in the binary that doesn't check GrowthBook at all
 - A compile-time flag active in certain builds
 - A response header or metadata field that triggers client-side clearing
 - The `cache_edits` API path (cached microcompact) operating independently of the GrowthBook gate
