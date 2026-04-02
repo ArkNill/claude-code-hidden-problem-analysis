@@ -168,6 +168,28 @@ Root causes identified with measured data.
 | 04-01 | [#42261](https://github.com/anthropics/claude-code/issues/42261), [#42259](https://github.com/anthropics/claude-code/issues/42259), [#42145](https://github.com/anthropics/claude-code/issues/42145), [#42132](https://github.com/anthropics/claude-code/issues/42132), [#42129](https://github.com/anthropics/claude-code/issues/42129), [#42104](https://github.com/anthropics/claude-code/issues/42104) | "You've hit your limit" — simultaneous reports (London, Berlin, Tokyo, Calcutta, Paris, Istanbul) | — |
 | 04-02 | [#42338](https://github.com/anthropics/claude-code/issues/42338) | Session resume invalidates entire prompt cache | — |
 
+### Official Fixes Shipped (v2.1.89-90, April 1)
+
+Anthropic shipped cache-related fixes in v2.1.89-90 without any GitHub issue response. Fixes were confirmed via [changelog](https://code.claude.com/docs/en/changelog) and personal X posts from Anthropic staff.
+
+| Version | Fix | Addresses |
+|---------|-----|-----------|
+| v2.1.89 | Prompt cache misses from tool schema bytes changing mid-session | Bug 1 (partial) |
+| v2.1.89 | StructuredOutput schema cache bug (~50% failure rate) | Cache stability |
+| v2.1.89 | Autocompact thrash loop detection + stop | Token drain loop |
+| v2.1.89 | Memory leak in LRU cache keys | Long session stability |
+| v2.1.89 | Nested CLAUDE.md re-injection (dozens of times) | Context bloat |
+| v2.1.90 | **`--resume` full prompt-cache miss (regression since v2.1.69)** | **Bug 2 (official fix)** |
+| v2.1.90 | **Per-turn JSON.stringify of MCP tool schemas eliminated** | Cache key stability |
+| v2.1.90 | Rate-limit options dialog infinite loop | Session crash |
+| v2.1.90 | SSE large frame quadratic → linear | Performance |
+
+**Staff acknowledgment (X only, not GitHub):**
+- [Lydia Hallie](https://x.com/lydiahallie/status/2039107775314428189): *"We shipped some fixes on the Claude Code side that should help"*
+- [Thariq Shihipar](https://x.com/trq212/status/2027232172810416493): Confirmed prompt caching bugs being investigated (earlier incident)
+
+**Independent verification:** Controlled benchmark confirms v2.1.90 achieves 86%+ overall cache read and 95-99% in stable sessions — both npm and standalone. See [BENCHMARK.md](BENCHMARK.md).
+
 ---
 
 ## Identified Root Causes
@@ -178,9 +200,9 @@ These are compound — multiple bugs interact to produce the observed behavior.
 
 | # | Root Cause | Issue | Version | Impact |
 |---|-----------|-------|---------|--------|
-| 1 | **Cache sentinel replacement** — standalone binary's Bun fork breaks cache prefix | [#40524](https://github.com/anthropics/claude-code/issues/40524) | All standalone | Full cache rebuild every turn |
-| 2 | **Resume cache regression** — `deferred_tools_delta` mismatch invalidates cache on resume | [#34629](https://github.com/anthropics/claude-code/issues/34629) | v2.1.69+ | **20x cost increase** (measured) |
-| 3 | **Compaction infinite loop** — 211 consecutive compactions with zero progress | [#24179](https://github.com/anthropics/claude-code/issues/24179) | v2.1.x | Entire budget consumed |
+| 1 | **Cache sentinel replacement** — standalone binary's Bun fork breaks cache prefix | [#40524](https://github.com/anthropics/claude-code/issues/40524) | All standalone | Full cache rebuild every turn. **Partially fixed in v2.1.89-90** ([changelog](https://code.claude.com/docs/en/changelog)) |
+| 2 | **Resume cache regression** — `deferred_tools_delta` mismatch invalidates cache on resume | [#34629](https://github.com/anthropics/claude-code/issues/34629) | v2.1.69+ | **20x cost increase** (measured). **Fixed in v2.1.90** ([changelog](https://code.claude.com/docs/en/changelog)) |
+| 3 | **Compaction infinite loop** — 211 consecutive compactions with zero progress | [#24179](https://github.com/anthropics/claude-code/issues/24179) | v2.1.x | Entire budget consumed. **Thrash loop fixed in v2.1.89** |
 | 4 | **OAuth retry storm** — token expiration triggers retry cascade | [#10784](https://github.com/anthropics/claude-code/issues/10784) | — | 3.75M tokens wasted |
 | 5 | **MCP tool description overhead** — loaded on every message | [#3406](https://github.com/anthropics/claude-code/issues/3406) | All | 10-20K tokens/message |
 | 6 | **Memory file double-load** — in git worktrees | [#24283](https://github.com/anthropics/claude-code/issues/24283) | — | Premature compaction |

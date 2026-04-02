@@ -101,13 +101,20 @@ The standalone binary's embedded Bun fork contains a `cch=00000` sentinel replac
 - **v2.1.90:** Partially mitigated — cold start still affected (47-67%), but recovers to 94-99% after warming
 - **npm:** Not affected — the JavaScript bundle does not contain this logic
 
+**Official fix in v2.1.89-90 ([changelog](https://code.claude.com/docs/en/changelog)):**
+- v2.1.89: *"Fixed prompt cache misses in long sessions caused by tool schema bytes changing mid-session"*
+- v2.1.90: *"Improved performance: eliminated per-turn JSON.stringify of MCP tool schemas on cache-key lookup"*
+
 ### Bug 2 — Resume Cache Breakage (v2.1.69+)
 
 **GitHub Issue:** [anthropics/claude-code#34629](https://github.com/anthropics/claude-code/issues/34629)
 
 `deferred_tools_delta` (introduced in v2.1.69) causes the first message's structure on `--resume` to not match the server's cached version — resulting in a complete cache miss. On a 500K token conversation, a single resume costs ~$0.15 in quota.
 
-**Applies to both npm and standalone.** Avoid `--resume` entirely.
+**Official fix in v2.1.90 ([changelog](https://code.claude.com/docs/en/changelog)):**
+> *"Fixed --resume causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)"*
+
+**Note:** While the changelog states this is fixed, community reports (e.g., `claude -p --resume` in headless harness mode) suggest edge cases may remain. We recommend continuing to avoid `--resume` until fully verified.
 
 ---
 
@@ -254,9 +261,20 @@ If most sessions show low read ratios, you're likely on an affected version. Upd
 - [#38335](https://github.com/anthropics/claude-code/issues/38335) — Session limits exhausted abnormally fast (300+ comments)
 - [#41788](https://github.com/anthropics/claude-code/issues/41788) — My original report (Max 20, 100% in ~70 min)
 
+### Anthropic Official Response
+
+Anthropic has **not responded on any GitHub issue** (2+ months of silence across 82 issues). Communication has been limited to personal social media:
+
+| Who | Platform | What | Link |
+|-----|----------|------|------|
+| **Lydia Hallie** (Product) | X | *"We shipped some fixes on the Claude Code side that should help"* | [Post](https://x.com/lydiahallie/status/2039107775314428189) |
+| **Thariq Shihipar** (Technical Staff) | X | *"We've reset rate limits... bug with prompt caching... hotfixed in 2.1.62"* (earlier incident) | [Post](https://x.com/trq212/status/2027232172810416493) |
+| **@anthropicai** | Threads | General Claude Code feature updates (no rate limit specifics) | [Post](https://www.threads.net/@anthropicai/post/DHeO-oyPjMb/) |
+| **Official Changelog** | Docs | v2.1.89-90 cache fix entries | [Changelog](https://code.claude.com/docs/en/changelog) |
+
 ### Community Engagement
 
-As of April 2, 2026: **160+ comments on 82 unique issues** (including v2.1.90 benchmark update). Anthropic official response count: **zero** (2+ months of silence).
+As of April 2, 2026: **160+ comments on 82 unique issues** (including v2.1.90 benchmark update). Anthropic official response on GitHub: **zero**.
 
 <details>
 <summary><strong>All 82 issues with root cause analysis + v2.1.90 update posted</strong> (click to expand)</summary>
