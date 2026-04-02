@@ -88,6 +88,37 @@ After cold start warmup, cache read ratio stabilizes at **95-99%**. This is norm
 
 ---
 
+## Usage Precautions (Updated April 2, 2026)
+
+Beyond the cache bugs, several Claude Code behaviors significantly accelerate token consumption. These apply regardless of whether the cache fix is in place.
+
+### Behaviors to Avoid
+
+| Behavior | Why | Measured Impact |
+|----------|-----|-----------------|
+| `--resume` | Replays **entire** conversation history as billable input tokens. Opaque thinking block signatures (base64) are included in the replay. | 500K+ tokens burned on a single resume of a long session ([#42260](https://github.com/anthropics/claude-code/issues/42260)) |
+| `/dream` | Triggers background API calls that consume tokens without visible output | Silent drain, difficult to detect |
+| `/insights` | Same as `/dream` — hidden background token consumption | Reported to cause "insane token usage" ([#40438](https://github.com/anthropics/claude-code/issues/40438)) |
+| v2.1.89 (latest) | Cache prefix bug still present + terminal content rendering regression on Linux/IntelliJ | All token inflation issues persist + broken UI ([#42244](https://github.com/anthropics/claude-code/issues/42244)) |
+
+### Behaviors to Use with Caution
+
+| Behavior | Why | Measured Data |
+|----------|-----|---------------|
+| Sub-agents (Agent tool, Haiku) | Each Haiku sub-agent call creates a **fresh context** with **0% cache read**. No cache sharing with parent session. | **317K input tokens across 31 sub-agent calls** (measured via proxy) |
+| Multiple terminals | Each terminal is an independent session with its own context. No shared quota pacing. | ~2x drain rate with 2 active terminals |
+| Large CLAUDE.md / context files | Sent as input on **every single turn**. With broken cache, billed at full price each time. | 30KB CLAUDE.md = 30KB × N turns fully billed |
+| Slash commands that rewrite files | Trigger large context rebuilds mid-session | 20-27% of session budget per invocation reported |
+| Session start / compaction | `cache_creation` spikes are structural and unavoidable at these boundaries | Normal — budget for it |
+
+### Server-Side Factor
+
+Even with cache working perfectly (91-99% read ratio), multiple users report faster quota drain compared to 2-3 weeks ago. This suggests a **server-side change** in rate limit calculation (pool size, cost weighting, or both) — not fixable client-side. The precautions above help stretch whatever budget remains.
+
+**Related:** Shared billing methods can share rate limit pools — if another account uses the same payment method, their usage counts against yours ([#41881](https://github.com/anthropics/claude-code/issues/41881)).
+
+---
+
 ## Safe Workarounds
 
 These use only official tools and releases — no binary modification required.
@@ -108,9 +139,9 @@ npm install -g @anthropic-ai/claude-code@2.1.68
 
 v2.1.68 predates the `deferred_tools_delta` change (Bug 2). You lose recent features but avoid both cache regressions.
 
-### 3. Avoid session resume
+### 3. Avoid session resume — always start fresh
 
-Start fresh sessions instead of using `--resume`. Bug 2 triggers specifically on session resume where the message structure mismatch causes a full cache miss.
+Start fresh sessions instead of using `--resume`. Bug 2 triggers specifically on session resume where the message structure mismatch causes a full cache miss. Use a structured CLAUDE.md to restore context instead.
 
 ### 4. Monitor your cache efficiency
 
@@ -118,9 +149,13 @@ Set up a local transparent proxy using `ANTHROPIC_BASE_URL` ([official env var](
 
 Example: route through `http://localhost:8080` and parse `cache_creation_input_tokens` / `cache_read_input_tokens` from the response `usage` object.
 
-### 5. Keep conversations short
+### 5. Keep conversations short, context lean
 
-Shorter conversations = smaller cache prefix = less damage when cache misses occur. If you notice rapid usage consumption, end the session and start fresh.
+Shorter conversations = smaller cache prefix = less damage when cache misses occur. If you notice rapid usage consumption, end the session and start fresh. Keep CLAUDE.md small — every byte is resent every turn.
+
+### 6. Minimize sub-agents and parallel terminals
+
+Use sub-agents only when essential (each one is a fresh uncached context). Run one terminal at a time to avoid parallel quota drain.
 
 ---
 
@@ -137,14 +172,33 @@ If most of your sessions show low read ratios, you are likely affected by one or
 
 ## Related Issues
 
+### Root Cause Bugs
 - [#40524](https://github.com/anthropics/claude-code/issues/40524) — Conversation history invalidated (Bug 1: sentinel)
 - [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta)
 - [#40652](https://github.com/anthropics/claude-code/issues/40652) — cch= billing hash substitution
+
+### Token Inflation Mechanisms
 - [#41663](https://github.com/anthropics/claude-code/issues/41663) — Prompt cache causes excessive token consumption
 - [#41607](https://github.com/anthropics/claude-code/issues/41607) — Duplicate compaction subagents (5x identical work)
 - [#41767](https://github.com/anthropics/claude-code/issues/41767) — Auto-compact loops in v2.1.89
 - [#41750](https://github.com/anthropics/claude-code/issues/41750) — Context management fires on every turn
+- [#42260](https://github.com/anthropics/claude-code/issues/42260) — Resume replays thinking signatures as input tokens
+- [#42256](https://github.com/anthropics/claude-code/issues/42256) — Read tool re-sends oversized images every message
+- [#42290](https://github.com/anthropics/claude-code/issues/42290) — /export truncates + /resume delivers incomplete context
+
+### Regressions (v2.1.89)
+- [#42244](https://github.com/anthropics/claude-code/issues/42244) — Terminal content disappearing (Linux/IntelliJ)
+- [#42240](https://github.com/anthropics/claude-code/issues/42240) — Slash command autocomplete broken
+
+### Rate Limit Reports (major threads)
+- [#16157](https://github.com/anthropics/claude-code/issues/16157) — Instantly hitting usage limits (1400+ comments)
+- [#38335](https://github.com/anthropics/claude-code/issues/38335) — Session limits exhausted abnormally fast (300+ comments)
+- [#41930](https://github.com/anthropics/claude-code/issues/41930) — Critical: Widespread abnormal usage drain — multiple root causes
 - [#41788](https://github.com/anthropics/claude-code/issues/41788) — My original report (Max 20, 100% in ~70 min)
+
+### Community Engagement
+
+As of April 2, 2026, I've posted root cause analysis + precautions across **96 comments on 80+ issues**. Anthropic official response count: **zero** (2+ months of silence across all rate-limit issues).
 
 ## Community References
 
@@ -160,7 +214,7 @@ If most of your sessions show low read ratios, you are likely affected by one or
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu)
 - **Versions tested:** v2.1.89 (affected), v2.1.81 (with workarounds), v2.1.68 (not affected)
-- **Date:** April 1, 2026
+- **Date:** April 2, 2026 (updated)
 
 ---
 
