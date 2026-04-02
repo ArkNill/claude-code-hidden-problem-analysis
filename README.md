@@ -2,22 +2,26 @@
 
 Measured analysis of cache bugs in Claude Code that caused **10-20x token inflation** on paid plans (Max 5/20). Includes controlled benchmarks comparing npm vs standalone binary installations.
 
-> **Last updated:** April 2, 2026
+> **Last updated:** April 3, 2026
 
 ---
 
-## Current Status: v2.1.90 — Stabilized
+## Current Status: v2.1.90 — Cache Fixed, But Not Fully Resolved
 
-**v2.1.90 has largely resolved the cache issue.** Both npm and standalone binary installations now achieve **86%+ overall cache read ratio** and **95-99% in stable sessions**. This is a dramatic improvement from v2.1.89, where standalone binary sessions sustained 4-34% cache read.
+**v2.1.90 fixed the client-side cache regression** (Bug 1 + Bug 2), restoring **86%+ overall cache read ratio** and **95-99% in stable sessions**. However, **multiple users on v2.1.90 still report rapid drain**, pointing to additional bugs beyond the cache layer.
 
 | Version | Installation | Cache Read (stable) | Sub-agent Cold Start | Verdict |
 |---------|-------------|--------------------|--------------------|---------|
-| **v2.1.90** | **npm (Node.js)** | **95-99.8%** | **79-87%** | **Optimal** |
+| **v2.1.90** | **npm (Node.js)** | **95-99.8%** | **79-87%** | **Best available** |
 | **v2.1.90** | **Standalone (ELF)** | **95-99.7%** | **47-67%** (recovers to 94-99%) | **Good** |
 | v2.1.89 | Standalone (ELF) | 90-99% | **4-17%** (never recovers) | **Avoid** |
 | v2.1.68 | npm | Normal | Normal | Safe but outdated |
 
-**If you're on v2.1.89 or earlier standalone, update to v2.1.90 immediately.** The single most impactful action you can take.
+**Update to v2.1.90 if you haven't already** — it fixes the biggest drain source. But be aware that at least **three additional bugs** remain unfixed (see [Root Cause](#root-cause) section):
+
+- **Bug 3:** Client-side false rate limiter generates fake "Rate limit reached" errors without calling the API ([#40584](https://github.com/anthropics/claude-code/issues/40584))
+- **Bug 4:** Silent microcompact invalidates prompt cache by stripping tool results mid-session ([#42542](https://github.com/anthropics/claude-code/issues/42542))
+- **Server-side:** 1M context requests incorrectly classified as "extra usage" on Max plans ([#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569))
 
 ### What to Do Right Now
 
@@ -89,7 +93,7 @@ alias claude-bin="ANTHROPIC_BASE_URL=http://localhost:8080 /path/to/standalone/c
 
 ## Root Cause
 
-Two client-side cache bugs, identified through community reverse engineering ([Reddit analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)):
+Four client-side bugs (two cache, one rate limiter, one compaction) plus server-side accounting issues. The first two were identified through community reverse engineering ([Reddit analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)); the latter two discovered April 2-3, 2026:
 
 ### Bug 1 — Sentinel Replacement (standalone binary only)
 
@@ -115,6 +119,55 @@ The standalone binary's embedded Bun fork contains a `cch=00000` sentinel replac
 > *"Fixed --resume causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)"*
 
 **Note:** While the changelog states this is fixed, community reports (e.g., `claude -p --resume` in headless harness mode) suggest edge cases may remain. We recommend continuing to avoid `--resume` until fully verified.
+
+### Bug 3 — Client-Side False Rate Limiter (all versions)
+
+**GitHub Issue:** [anthropics/claude-code#40584](https://github.com/anthropics/claude-code/issues/40584)
+
+The local rate limiter generates **synthetic "Rate limit reached" errors** without ever calling the Anthropic API. These errors are identifiable in session logs by:
+
+```json
+{
+  "model": "<synthetic>",
+  "usage": { "input_tokens": 0, "output_tokens": 0 }
+}
+```
+
+Triggered by **large transcripts (~74MB+)** and **concurrent sub-agent spawns**. The rate limiter multiplies `context_size × concurrent_requests`, so multi-agent workflows get blocked even when each individual request is small.
+
+- **Discovery:** [@rwp65](https://github.com/rwp65) in [#40584](https://github.com/anthropics/claude-code/issues/40584) (March 29, 2026)
+- **Cross-referenced by:** [@marlvinvu](https://github.com/marlvinvu) across [#40438](https://github.com/anthropics/claude-code/issues/40438), [#39938](https://github.com/anthropics/claude-code/issues/39938), [#38239](https://github.com/anthropics/claude-code/issues/38239)
+- **Status:** **Unfixed** — present in all versions including v2.1.90
+- **Impact:** Users see "Rate limit reached" immediately, even after hours of inactivity when the budget should have fully reset. No API call is made, so the error is entirely client-generated.
+
+### Bug 4 — Silent Microcompact → Cache Invalidation (v2.1.89+)
+
+**GitHub Issue:** [anthropics/claude-code#42542](https://github.com/anthropics/claude-code/issues/42542)
+
+Three compaction mechanisms in `src/services/compact/` run **silently on every API call**, stripping old tool results without user notification. This invalidates prompt cache prefixes, causing subsequent API calls to be billed at full price.
+
+| Mechanism | Source | Trigger | Control |
+|-----------|--------|---------|---------|
+| **Time-based microcompact** | `microCompact.ts:422` | Gap since last assistant message exceeds threshold | GrowthBook: `getTimeBasedMCConfig()` |
+| **Cached microcompact** | `microCompact.ts:305` | Count-based trigger, uses `cache_edits` API to delete old tool results | GrowthBook: `getCachedMCConfig()` |
+| **Session memory compact** | `sessionMemoryCompact.ts:57` | Runs before autocompact | GrowthBook flag |
+
+**Key findings:**
+- All three bypass `DISABLE_AUTO_COMPACT` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`
+- Controlled by **server-side GrowthBook A/B testing flags** — Anthropic can change behavior without a client update
+- Tool results silently replaced with `[Old tool result content cleared]` — no compaction notification shown
+- This explains why v2.1.90 fixes cache for some users but not others (depends on GrowthBook flag assignment)
+- Also explains why old Docker versions that were never updated started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed
+
+**Cache invalidation chain:**
+1. Microcompact triggers silently (GrowthBook flag)
+2. Old tool results stripped → conversation prefix changes
+3. Prompt cache prefix no longer matches → cache miss
+4. Next API call: 0% cache read → full-price billing on entire context
+5. Usage burns 5-10x faster than expected
+
+- **Discovery:** [@Sn3th](https://github.com/Sn3th) in [#42542](https://github.com/anthropics/claude-code/issues/42542) (April 2, 2026)
+- **Status:** **Unfixed** — present in v2.1.89+ and controlled server-side
 
 ---
 
@@ -174,11 +227,15 @@ Full per-request data and warming curves: **[BENCHMARK.md](BENCHMARK.md)**
 | Large CLAUDE.md / context files | Sent on every turn — with broken cache, billed at full price each time | Keep lean; less critical on v2.1.90 with working cache |
 | Session start / compaction | `cache_creation` spikes are structural and unavoidable | Normal — budget for it |
 
-### Server-Side Factor (Unresolved)
+### Server-Side Factors (Unresolved)
 
-Even with cache working perfectly (91-99%), multiple users report faster quota drain compared to 2-3 weeks ago. This suggests a **server-side change** in rate limit calculation — not fixable client-side.
+Even with cache working perfectly (91-99%), multiple users report faster quota drain compared to 2-3 weeks ago. At least three server-side issues contribute:
 
-**Org-level quota sharing:** Accounts on the same billing method share rate limit pools ([#41881](https://github.com/anthropics/claude-code/issues/41881)). Source code confirms `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`.
+**1. Server-side accounting change:** Old Docker versions (v2.1.74, v2.1.86 — never updated) started draining fast recently, proving the issue isn't purely client-side ([#37394](https://github.com/anthropics/claude-code/issues/37394), reported by [@pablofuenzalidadf](https://github.com/pablofuenzalidadf)).
+
+**2. 1M context billing regression:** Max plans include 1M context free (announced March 13, confirmed March 20), but a late-March regression causes the server to incorrectly classify these requests as "extra usage." Debug logs show a 429 error at only ~23K tokens with `"Extra usage is required for long context requests"` on a Max plan with 1M context enabled ([#42616](https://github.com/anthropics/claude-code/issues/42616), request ID: `req_011CZf8TJf84hAUziB6LuRoc`). Related display bug: [#42569](https://github.com/anthropics/claude-code/issues/42569).
+
+**3. Org-level quota sharing:** Accounts on the same billing method share rate limit pools ([#41881](https://github.com/anthropics/claude-code/issues/41881)). Source code confirms `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`.
 
 ---
 
@@ -245,9 +302,16 @@ If most sessions show low read ratios, you're likely on an affected version. Upd
 ## Related Issues
 
 ### Root Cause Bugs
-- [#40524](https://github.com/anthropics/claude-code/issues/40524) — Conversation history invalidated (Bug 1: sentinel)
-- [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta)
+- [#40524](https://github.com/anthropics/claude-code/issues/40524) — Conversation history invalidated (Bug 1: sentinel) — **fixed in v2.1.89-90**
+- [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta) — **fixed in v2.1.90**
 - [#40652](https://github.com/anthropics/claude-code/issues/40652) — cch= billing hash substitution
+- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **Client-side false rate limiter** (Bug 3: synthetic model, 0 tokens) — **unfixed**
+- [#42542](https://github.com/anthropics/claude-code/issues/42542) — **Silent microcompact → cache invalidation** (Bug 4: GrowthBook-controlled) — **unfixed**
+
+### Server-Side Billing Bugs
+- [#42616](https://github.com/anthropics/claude-code/issues/42616) — Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M context
+- [#42569](https://github.com/anthropics/claude-code/issues/42569) — 1M context incorrectly shown as extra billable usage on Max plan
+- [#37394](https://github.com/anthropics/claude-code/issues/37394) — Old Docker versions (never updated) drain fast — server-side accounting change
 
 ### Token Inflation Mechanisms
 - [#41663](https://github.com/anthropics/claude-code/issues/41663) — Prompt cache causes excessive token consumption
@@ -255,6 +319,7 @@ If most sessions show low read ratios, you're likely on an affected version. Upd
 - [#41767](https://github.com/anthropics/claude-code/issues/41767) — Auto-compact loops in v2.1.89
 - [#42260](https://github.com/anthropics/claude-code/issues/42260) — Resume replays thinking signatures as input tokens
 - [#42256](https://github.com/anthropics/claude-code/issues/42256) — Read tool re-sends oversized images every message
+- [#42590](https://github.com/anthropics/claude-code/issues/42590) — Context compaction too aggressive on 1M context window
 
 ### Rate Limit Reports (major threads)
 - [#16157](https://github.com/anthropics/claude-code/issues/16157) — Instantly hitting usage limits (1400+ comments)
@@ -274,10 +339,10 @@ Anthropic has **not responded on any GitHub issue** (2+ months of silence across
 
 ### Community Engagement
 
-As of April 2, 2026: **160+ comments on 82 unique issues** (including v2.1.90 benchmark update). Anthropic official response on GitHub: **zero**.
+As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90 benchmark update + Bug 3/4 cross-references). Anthropic official response on GitHub: **zero**.
 
 <details>
-<summary><strong>All 82 issues with root cause analysis + v2.1.90 update posted</strong> (click to expand)</summary>
+<summary><strong>All 91 issues with root cause analysis + v2.1.90 update posted</strong> (click to expand)</summary>
 
 | # | Issue | Title |
 |---|-------|-------|
@@ -364,15 +429,29 @@ As of April 2, 2026: **160+ comments on 82 unique issues** (including v2.1.90 be
 | 81 | [#42277](https://github.com/anthropics/claude-code/issues/42277) | New session doesn't reset usage limits correctly |
 | 82 | [#42290](https://github.com/anthropics/claude-code/issues/42290) | /export truncates + /resume delivers incomplete context |
 | — | [#42338](https://github.com/anthropics/claude-code/issues/42338) | Session resume invalidates entire prompt cache |
+| 83 | [#42390](https://github.com/anthropics/claude-code/issues/42390) | Rate limit triggered despite 0% usage in /usage |
+| 84 | [#42409](https://github.com/anthropics/claude-code/issues/42409) | Excessive API usage consumption during active session |
+| 85 | [#42542](https://github.com/anthropics/claude-code/issues/42542) | **Silent context degradation — 3 microcompact mechanisms (Bug 4: Root Cause)** |
+| 86 | [#42569](https://github.com/anthropics/claude-code/issues/42569) | 1M context window incorrectly shown as extra billable usage on Max plan |
+| 87 | [#42583](https://github.com/anthropics/claude-code/issues/42583) | You've hit your limit — 1M actual vs 120-160K expected |
+| 88 | [#42592](https://github.com/anthropics/claude-code/issues/42592) | Token consumption 100x faster after v2.1.88 — 21 min to 5-hour limit |
+| 89 | [#42609](https://github.com/anthropics/claude-code/issues/42609) | Reached limit session in under 5 minutes (resume-triggered) |
+| 90 | [#42616](https://github.com/anthropics/claude-code/issues/42616) | Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M context |
+| 91 | [#42590](https://github.com/anthropics/claude-code/issues/42590) | Context compaction too aggressive on 1M context window (Opus 4.6) |
 
 </details>
 
 ## Community References
 
+### Analysis & Tools
 - [Reddit: Reverse engineering analysis of Claude Code cache bugs](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)
 - [cc-cache-fix](https://github.com/Rangizingo/cc-cache-fix) — Community cache patch + test toolkit
 - [cc-diag](https://github.com/nicobailey/cc-diag) — mitmproxy-based Claude Code traffic analysis
 - [claude-code-router](https://github.com/pathintegral-institute/claude-code-router) — Transparent proxy for Claude Code
+
+### Token Optimization Tools (complementary, not bug fixes)
+- [rtk](https://github.com/rtk-ai/rtk) — Tool output compression (trims CLI/test results post-execution, reduces input token volume)
+- [tokenlean](https://github.com/edimuj/tokenlean) — 54 CLI tools for agents (extracts symbols/snippets instead of full file reads, reduces base token count)
 
 ---
 
@@ -390,7 +469,7 @@ As of April 2, 2026: **160+ comments on 82 unique issues** (including v2.1.90 be
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
 - **Versions tested:** v2.1.90 (npm + standalone benchmark), v2.1.89 (affected), v2.1.81 (patched workaround), v2.1.68 (pre-bug baseline)
 - **Monitoring:** cc-relay transparent proxy (source-audited, zero request modification)
-- **Date:** April 2, 2026
+- **Date:** April 3, 2026
 
 ---
 

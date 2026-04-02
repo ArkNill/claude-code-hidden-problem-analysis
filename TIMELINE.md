@@ -9,10 +9,10 @@
 
 | Metric | Value |
 |--------|-------|
-| **Duration** | 14 months (2025-02 ~ 2026-04-02, ongoing) |
+| **Duration** | 14 months (2025-02 ~ 2026-04-03, ongoing) |
 | **Major escalation cycles** | 4 |
 | **Largest issue** | #16157 — 1,422 comments, 647 thumbs_up |
-| **Root causes identified** | 7 (client + server, compound) |
+| **Root causes identified** | 9 client-side + 6 server-side (compound) |
 | **Anthropic official response** | Zero (2+ months silence across all rate-limit issues) |
 
 ---
@@ -167,6 +167,28 @@ Root causes identified with measured data.
 | 04-01 | [#42272](https://github.com/anthropics/claude-code/issues/42272) | Excessive consumption since 2.1.88 — 66% usage in 2 questions | — |
 | 04-01 | [#42261](https://github.com/anthropics/claude-code/issues/42261), [#42259](https://github.com/anthropics/claude-code/issues/42259), [#42145](https://github.com/anthropics/claude-code/issues/42145), [#42132](https://github.com/anthropics/claude-code/issues/42132), [#42129](https://github.com/anthropics/claude-code/issues/42129), [#42104](https://github.com/anthropics/claude-code/issues/42104) | "You've hit your limit" — simultaneous reports (London, Berlin, Tokyo, Calcutta, Paris, Istanbul) | — |
 | 04-02 | [#42338](https://github.com/anthropics/claude-code/issues/42338) | Session resume invalidates entire prompt cache | — |
+| 04-02 | [#42390](https://github.com/anthropics/claude-code/issues/42390) | Rate limit triggered despite 0% usage in /usage | 3 |
+| 04-02 | [#42409](https://github.com/anthropics/claude-code/issues/42409) | Excessive API usage consumption during active session | 4 |
+| 04-02 | [**#42542**](https://github.com/anthropics/claude-code/issues/42542) | **Silent context degradation — 3 microcompact mechanisms strip tool results** | 2 | **ROOT CAUSE #3: GrowthBook-controlled compaction invalidates cache** |
+| 04-02 | [**#42569**](https://github.com/anthropics/claude-code/issues/42569) | **1M context incorrectly shown as extra billable usage on Max plan** | 1 | **Server-side billing regression** |
+| 04-02 | [#42583](https://github.com/anthropics/claude-code/issues/42583) | You've hit your limit — 1M actual vs 120-160K expected (v2.1.90) | 1 |
+| 04-02 | [#42590](https://github.com/anthropics/claude-code/issues/42590) | Context compaction too aggressive on 1M context window (Opus 4.6) | 1 |
+| 04-02 | [#42592](https://github.com/anthropics/claude-code/issues/42592) | Token consumption 100x faster after v2.1.88 — 21 min to 5-hour limit | 4 |
+| 04-02 | [#42609](https://github.com/anthropics/claude-code/issues/42609) | Reached limit session in under 5 minutes (resume-triggered) | 1 |
+| 04-02 | [**#42616**](https://github.com/anthropics/claude-code/issues/42616) | **Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M** | 1 | **Server-side: debug log proves API rejected valid request** |
+
+### New Root Causes Discovered (April 2-3)
+
+Two significant discoveries by community investigation:
+
+**Bug 3 — Client-side false rate limiter** ([#40584](https://github.com/anthropics/claude-code/issues/40584), discovered by [@rwp65](https://github.com/rwp65)):
+Local rate limiter generates synthetic "Rate limit reached" errors (`model: "<synthetic>"`, `input_tokens: 0`) without calling the API. Triggered by large transcripts + concurrent sub-agents. Cross-referenced by [@marlvinvu](https://github.com/marlvinvu) across [#40438](https://github.com/anthropics/claude-code/issues/40438), [#39938](https://github.com/anthropics/claude-code/issues/39938), [#38239](https://github.com/anthropics/claude-code/issues/38239). **Unfixed in v2.1.90.**
+
+**Bug 4 — Silent microcompact → cache invalidation** ([#42542](https://github.com/anthropics/claude-code/issues/42542), discovered by [@Sn3th](https://github.com/Sn3th)):
+Three compaction mechanisms (`microCompact.ts:422`, `microCompact.ts:305`, `sessionMemoryCompact.ts:57`) silently strip tool results on every API call, controlled by server-side GrowthBook A/B flags. This invalidates prompt cache prefixes → 0% cache read → full-price billing. Explains why v2.1.90 works for some but not others (GrowthBook assignment varies). Also explains why old Docker versions started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed without client update. **Unfixed, server-controlled.**
+
+**Server-side 1M billing regression** ([#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569)):
+Max plan 1M context (free since March 13) incorrectly classified as "extra usage." Debug log shows 429 at 23K tokens with request ID `req_011CZf8TJf84hAUziB6LuRoc`. **Server-side bug, unfixed.**
 
 ### Official Fixes Shipped (v2.1.89-90, April 1)
 
@@ -207,6 +229,8 @@ These are compound — multiple bugs interact to produce the observed behavior.
 | 5 | **MCP tool description overhead** — loaded on every message | [#3406](https://github.com/anthropics/claude-code/issues/3406) | All | 10-20K tokens/message |
 | 6 | **Memory file double-load** — in git worktrees | [#24283](https://github.com/anthropics/claude-code/issues/24283) | — | Premature compaction |
 | 7 | **Thinking signature replay** — opaque base64 blocks resent on resume | [#42260](https://github.com/anthropics/claude-code/issues/42260) | — | 500K+ tokens per resume |
+| 8 | **Client-side false rate limiter** — synthetic error blocks requests without API call | [#40584](https://github.com/anthropics/claude-code/issues/40584) | All | Instant "Rate limit reached" with `model: "<synthetic>"`, `input_tokens: 0`. **Unfixed** |
+| 9 | **Silent microcompact → cache invalidation** — GrowthBook-controlled compaction strips tool results | [#42542](https://github.com/anthropics/claude-code/issues/42542) | v2.1.89+ | Cache prefix invalidated → 0% read → full-price billing. **Unfixed, server-controlled** |
 
 ### Server-Side Issues
 
@@ -216,6 +240,8 @@ These are compound — multiple bugs interact to produce the observed behavior.
 | 2 | **Accounting mismatch** — meter shows 16-84% but "limit reached" | [#19673](https://github.com/anthropics/claude-code/issues/19673), [#29579](https://github.com/anthropics/claude-code/issues/29579) | Unpredictable cutoffs |
 | 3 | **Org-level quota sharing** — accounts with same billing share pool | [#41881](https://github.com/anthropics/claude-code/issues/41881) | Unexpected cross-account drain |
 | 4 | **Opus 4.6 auto-upgrade** — higher token consumption, no opt-out | [#23706](https://github.com/anthropics/claude-code/issues/23706) | Higher base cost per turn |
+| 5 | **Server-side accounting change** — old Docker versions drain fast without client update | [#37394](https://github.com/anthropics/claude-code/issues/37394) | Proves server-side cause independent of client bugs |
+| 6 | **1M context billing regression** — Max plan 1M requests classified as "extra usage" | [#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569) | Spurious 429 at 23K tokens, incorrect billing |
 
 ---
 
@@ -254,4 +280,4 @@ Each new model release or version update has been a trigger for the next escalat
 
 ---
 
-*Collected 2026-04-02 via GitHub API. See [README.md](README.md) for root cause analysis and workarounds.*
+*Collected 2026-04-02, updated 2026-04-03 via GitHub API. See [README.md](README.md) for root cause analysis and workarounds.*
