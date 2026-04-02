@@ -166,8 +166,9 @@ Three compaction mechanisms in `src/services/compact/` run **silently on every A
 4. Next API call: 0% cache read → full-price billing on entire context
 5. Usage burns 5-10x faster than expected
 
+- **Update (April 3):** GrowthBook flag survey across 4 machines / 4 accounts shows **all gates disabled** — yet context is still being stripped. See [MICROCOMPACT.md](MICROCOMPACT.md) for full analysis, collected flag data, and open questions (runtime vs disk cache divergence, server-side clearing hypothesis).
 - **Discovery:** [@Sn3th](https://github.com/Sn3th) in [#42542](https://github.com/anthropics/claude-code/issues/42542) (April 2, 2026)
-- **Status:** **Unfixed** — present in v2.1.89+ and controlled server-side
+- **Status:** **Unfixed** — present in v2.1.89+ and controlled server-side. All known GrowthBook gates show disabled but stripping continues.
 
 ---
 
