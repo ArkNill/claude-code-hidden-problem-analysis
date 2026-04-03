@@ -418,6 +418,9 @@ If most sessions show low read ratios, you're likely on an affected version. Upd
 - [#42256](https://github.com/anthropics/claude-code/issues/42256) — Read tool re-sends oversized images every message
 - [#42590](https://github.com/anthropics/claude-code/issues/42590) — Context compaction too aggressive on 1M context window
 
+### Session Loading / JSONL Pipeline
+- [#43044](https://github.com/anthropics/claude-code/issues/43044) — **`--resume` loads 0% context on v2.1.91** — three regressions in session loading pipeline: `walkChainBeforeParse` removed, `ExY` timestamp bridging fork boundaries, missing `leafUuids` check (by [@kolkov](https://github.com/kolkov)). Different layer from API cache bugs — see [analysis](#related-session-loading-analysis)
+
 ### Rate Limit Reports (major threads)
 - [#16157](https://github.com/anthropics/claude-code/issues/16157) — Instantly hitting usage limits (1400+ comments)
 - [#38335](https://github.com/anthropics/claude-code/issues/38335) — Session limits exhausted abnormally fast (300+ comments)
@@ -554,6 +557,7 @@ As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90-91
 - [Reddit: Reverse engineering analysis of Claude Code cache bugs](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)
 - [cc-cache-fix](https://github.com/Rangizingo/cc-cache-fix) — Community cache patch + test toolkit
 - [cc-diag](https://github.com/nicobailey/cc-diag) — mitmproxy-based Claude Code traffic analysis
+- [ccdiag](https://github.com/kolkov/ccdiag) — Go-based JSONL session log recovery and DAG analysis tool (by [@kolkov](https://github.com/kolkov)). Operates at the **session loading layer** (JSONL DAG / fork pruning), distinct from the API-level cache analysis in this repo. See [related issue](#related-session-loading-analysis) below
 - [claude-code-router](https://github.com/pathintegral-institute/claude-code-router) — Transparent proxy for Claude Code
 - [CUStats](https://custats.info) — Real-time usage tracking and visualization
 - [context-stats](https://github.com/luongnv89/cc-context-stats) — Per-interaction cache metrics export and analysis (by [@luongnv89](https://github.com/luongnv89))
@@ -563,6 +567,26 @@ As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90-91
 ### Token Optimization Tools (complementary, not bug fixes)
 - [rtk](https://github.com/rtk-ai/rtk) — Tool output compression (trims CLI/test results post-execution, reduces input token volume)
 - [tokenlean](https://github.com/edimuj/tokenlean) — 54 CLI tools for agents (extracts symbols/snippets instead of full file reads, reduces base token count)
+
+### Related Session Loading Analysis
+
+<a id="related-session-loading-analysis"></a>
+
+[@kolkov](https://github.com/kolkov) independently analyzed v2.1.91 `--resume` regressions at the **JSONL DAG / session loading layer** — a different level from the API-level cache, microcompact, and budget cap bugs documented above.
+
+**Issue:** [anthropics/claude-code#43044](https://github.com/anthropics/claude-code/issues/43044) — *"Bug: --resume loads 0% context on v2.1.91 — three regressions in session loading pipeline (source code verified)"*
+
+**Three v2.1.91 regressions identified:**
+
+| # | Regression | Effect |
+|---|-----------|--------|
+| 1 | `walkChainBeforeParse` removed | Fork pruning gone for JSONL files >5MB — resume loads entire raw log instead of the active chain |
+| 2 | `ExY` timestamp fallback bridges fork boundaries | Session forks that should be separate get merged across timestamp boundaries |
+| 3 | Missing `leafUuids` check in `getLastSessionLog` | Last-session detection picks wrong log file when multiple forks exist |
+
+**Tool:** [ccdiag](https://github.com/kolkov/ccdiag) — Go-based JSONL recovery tool for diagnosing and repairing session logs affected by these regressions.
+
+**Relationship to this analysis:** This repo focuses on API-level prompt cache efficiency (sentinel, cache keys, microcompact, budget cap). Kolkov's findings cover the **pre-API pipeline** — how the client reconstructs conversation history from on-disk JSONL logs before sending it to the API. Both layers contribute to `--resume` problems, but at different stages: kolkov's bugs affect *what gets loaded*, while our Bug 2 affects *whether the loaded content gets cached by the API*.
 
 ---
 
