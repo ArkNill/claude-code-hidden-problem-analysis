@@ -1,8 +1,10 @@
-# npm vs Standalone Binary — Cache Efficiency Benchmark
+# Cache Efficiency Benchmark — npm vs Standalone
 
-> Controlled comparison on the **same machine, same version (v2.1.90), same proxy**, differing only in installation method.
+> **Current answer (v2.1.91):** They're the same. Both hit 84.7% cold start and 97-99% stable. The Sentinel gap from v2.1.90 is gone. Use whichever you prefer.
+>
+> The v2.1.90 data below is kept for reference — it shows the gap that existed and how it was measured. The v2.1.91 head-to-head comparison is at the [bottom of this file](#v2191-addendum-april-3-2026).
 
-**Date:** April 2, 2026
+**v2.1.90 test date:** April 2, 2026 | **v2.1.91 test date:** April 3, 2026
 
 ---
 
@@ -52,7 +54,26 @@ Both routed through `ANTHROPIC_BASE_URL=http://localhost:8080` (cc-relay proxy).
 
 ---
 
-## Results
+## v2.1.89 Baseline — The Broken State (April 1, JSONL data)
+
+Before setting up the monitoring proxy, cache data was extracted from session JSONL files. These sessions show the drain that triggered the investigation:
+
+| Session | Time | Entries | Avg Cache Read | Min | Max | Status |
+|---------|------|---------|---------------|-----|-----|--------|
+| `64d42269` | 4/1 16:33 | 233 | **47.0%** | 8.3% | 99.8% | Drain starting |
+| `9100c2d2` | 4/1 18:04 | 89 | **36.1%** | 21.1% | 89.5% | **Worst drain — this triggered the investigation** |
+
+After downgrading to v2.1.68 (npm):
+
+| Session | Time | Entries | Avg Cache Read | Min | Max | Status |
+|---------|------|---------|---------------|-----|-----|--------|
+| `892388f6` | 4/1 19:12 | 119 | **97.6%** | 60.9% | 99.9% | **Recovered after downgrade** |
+
+The 36.1% → 97.6% improvement after downgrading from v2.1.89 to v2.1.68 confirmed the regression was version-specific. Proxy monitoring was set up at 17:55 on April 1 to capture per-request data going forward.
+
+---
+
+## v2.1.90 Results (April 2, Proxy data)
 
 ### npm v2.1.90 — Session Summary
 
@@ -75,14 +96,14 @@ Both routed through `ANTHROPIC_BASE_URL=http://localhost:8080` (cc-relay proxy).
 | 13:14 | 4,707 | 4,009 | 15,393 | 60,939 | **79.8%** | Sub-agent work |
 | 13:15 | 1 | 6,872 | 6,044 | 95,449 | **94.0%** | Heavy read |
 | 13:16 | 1 | 7,140 | 16,195 | 80,871 | **83.3%** | 79-report agent |
-| 13:17 | 4,112 | 4,150 | 15,355 | 103,1xx | **87.0%** | Agent merge |
-| 13:17 | 3 | 174 | 8,387 | 118,5xx | **93.4%** | Post-agent |
-| 13:18 | 3 | 567 | 253 | 126,9xx | **99.8%** | Stable |
-| 13:20 | 3 | 660 | 612 | 127,1xx | **99.5%** | Stable |
-| 13:20 | 3 | 513 | 709 | 127,7xx | **99.4%** | Stable |
-| 13:21 | 1 | 341 | 769 | 128,5xx | **99.4%** | Stable |
-| 13:21 | 1 | 208 | 3,529 | 129,6xx | **97.4%** | Stable |
-| 13:21 | 1 | 65 | 270 | 133,1xx | **99.8%** | Stable |
+| 13:17 | 4,112 | 4,150 | 15,355 | ~103,100 | **87.0%** | Agent merge |
+| 13:17 | 3 | 174 | 8,387 | ~118,500 | **93.4%** | Post-agent |
+| 13:18 | 3 | 567 | 253 | ~126,900 | **99.8%** | Stable |
+| 13:20 | 3 | 660 | 612 | ~127,100 | **99.5%** | Stable |
+| 13:20 | 3 | 513 | 709 | ~127,700 | **99.4%** | Stable |
+| 13:21 | 1 | 341 | 769 | ~128,500 | **99.4%** | Stable |
+| 13:21 | 1 | 208 | 3,529 | ~129,600 | **97.4%** | Stable |
+| 13:21 | 1 | 65 | 270 | ~133,100 | **99.8%** | Stable |
 | 13:21 | 3 | 232 | 8,831 | 61,148 | **87.4%** | Sub-agent |
 | 13:21 | 1 | 119 | 736 | 69,979 | **99.0%** | Stable |
 | 13:21 | 1 | 92 | 211 | 70,715 | **99.7%** | Stable |
@@ -287,7 +308,7 @@ cc-relay source code audited: pure pass-through. No request/response body modifi
 | Parallel agent research/analysis | **Best** | **Good** (agents warm up quickly) | Avoid |
 | Maximum token efficiency | **Best** | **Close to optimal** | Avoid |
 
-**Bottom line:** v2.1.90 standalone is a major improvement — the gap with npm is now marginal (limited to sub-agent cold starts that warm up within 1-2 requests). Both v2.1.90 installations consumed comparable quota (7% npm vs 5% standalone for equivalent workloads). **The real enemy is v2.1.89 and earlier**, where cache never recovered. Users on older standalone versions should update to v2.1.90 immediately regardless of installation method.
+**Bottom line (v2.1.90):** The gap with npm was limited to sub-agent cold starts (first 1-2 requests at 14-47%), recovering to 94-99% after 3-5 requests. Both consumed comparable quota (7% npm vs 5% standalone). **The real enemy was v2.1.89 and earlier**, where cache never recovered. As of v2.1.91, this gap is fully closed — see the [v2.1.91 addendum below](#v2191-addendum-april-3-2026). Update to v2.1.91 regardless of installation method.
 
 ### Disable Auto-Update First
 
@@ -342,15 +363,111 @@ The key insight: **stable main-session cache looks similar between both installa
 
 ---
 
+## v2.1.91 Full Benchmark (April 3, 2026)
+
+Same machine, same proxy, same scenarios as v2.1.90. Both installations updated to v2.1.91, run in parallel.
+
+### v2.1.91 npm — Session Summary (Scenarios 1-7)
+
+| Metric | Value |
+|--------|-------|
+| **Requests** | 34 |
+| **Duration** | 154s |
+| **Overall cache read** | **88.4%** |
+| **Max body size** | 249KB |
+| **Microcompact** | 0 |
+| **Budget events** | 0 |
+
+#### npm v2.1.91 — Per-Request Data
+
+| Time | Create | Read | **Read %** | Body KB | Context |
+|------|--------|------|-----------|---------|---------|
+| 11:31:17 | 4,591 | 24,957 | **84.5%** | 108 | Cold start |
+| 11:31:24 | 496 | 29,548 | **98.3%** | 111 | Stable |
+| 11:31:29 | 573 | 30,044 | **98.1%** | 113 | Stable |
+| 11:31:47 | 1,589 | 30,617 | **95.1%** | 119 | Context growth |
+| 11:31:48 | 0 | 0 | **0.0%** | 14 | Sub-agent init (x3) |
+| 11:31:49 | 5,353 | 6,311 | **54.1%** | 43 | Sub-agent cold start |
+| 11:31:50 | 1,588 | 11,181 | **87.6%** | 46 | Sub-agent warming |
+| 11:31:51 | 815 | 11,664 | **93.5%** | 45 | Sub-agent stable |
+| 11:31:57 | 13,816 | 13,242 | **48.9%** | 92 | Sub-agent heavy read |
+| 11:32:08 | 5,464 | 23,215 | **80.9%** | 96 | Context growth |
+| 11:32:15 | 7,855 | 32,206 | **80.4%** | 182 | Heavy scenario |
+| 11:32:19 | 13,726 | 40,061 | **74.5%** | 189 | Large context burst |
+| 11:32:29 | 5,294 | 53,787 | **91.0%** | 206 | Recovering |
+| 11:32:38 | 1,173 | 59,081 | **98.1%** | 211 | Stable |
+| 11:32:38 | 0 | 0 | **0.0%** | 56-86 | Parallel agent init (x3) |
+| 11:32:44 | 625 | 60,254 | **99.0%** | 214 | Post-agent stable |
+| 11:33:42 | 273 | 66,720 | **99.6%** | 233 | Stable |
+| 11:33:51 | 1,159 | 70,533 | **98.4%** | 249 | Final |
+
+### v2.1.91 Standalone — Session Summary (Scenarios A-D)
+
+| Metric | Value |
+|--------|-------|
+| **Requests** | 30 |
+| **Duration** | 120s |
+| **Overall cache read** | **84.1%** |
+| **Max body size** | 170KB |
+| **Microcompact** | 0 |
+| **Budget events** | 0 |
+
+#### Standalone v2.1.91 — Per-Request Data
+
+| Time | Create | Read | **Read %** | Body KB | Context |
+|------|--------|------|-----------|---------|---------|
+| 11:30:56 | 21,440 | 8,237 | **27.8%** | 109 | Cold start |
+| 11:31:02 | 197 | 29,677 | **99.3%** | 110 | Immediate recovery |
+| 11:31:12 | 2,496 | 29,874 | **92.3%** | 118 | Context growth |
+| 11:31:19 | 369 | 32,646 | **98.9%** | 120 | Stable |
+| 11:31:39 | 5,585 | 33,015 | **85.5%** | 138 | Multi-file read |
+| 11:31:52 | 1,578 | 38,600 | **96.1%** | 144 | Stable |
+| 11:32:03 | 403 | 44,521 | **99.1%** | 155 | Stable |
+| 11:32:16 | 665 | 44,924 | **98.5%** | 157 | Stable |
+| 11:32:18 | 13,283 | 0 | **0.0%** | 47 | Sub-agent init (x3) |
+| 11:32:19 | 594 | 13,283 | **95.7%** | 50 | Sub-agent warming |
+| 11:32:21 | 97 | 13,784 | **99.3%** | 50 | Sub-agent stable |
+| 11:32:25 | 1,310 | 14,014 | **91.5%** | 52 | Sub-agent work |
+| 11:32:37 | 12,533 | 16,371 | **56.6%** | 95 | Sub-agent heavy |
+| 11:32:56 | 2,659 | 45,589 | **94.5%** | 170 | Final stable |
+
+### Cross-Version Comparison (Full Scenarios)
+
+| Metric | v2.1.90 npm | v2.1.90 standalone | v2.1.91 npm | v2.1.91 standalone |
+|--------|------------|-------------------|------------|-------------------|
+| Scenarios | 7 (1-7) | 4 (A-D) | 7 (1-7) | 4 (A-D) |
+| Requests | ~1,753 | ~200 | 34 | 30 |
+| Overall cache | 86.4% | 86.2% | **88.4%** | **84.1%** |
+| Cold start | 63.5-80% | **14.6-47.2%** | **84.5%** | **27.8%** |
+| Cold start recovery | 3-5 reqs to 95%+ | 3-5 reqs to 94-99% | 2 reqs to 98%+ | **1 req to 99.3%** |
+| Sub-agent cold | 54-80% | 14-47% | **54.1%** | **0%** (full rebuild) |
+| Sub-agent stable | 87-94% | 94-99% | **93-99%** | **91-99%** |
+| Stable session | 95-99.8% | 95-99.7% | **98-99.6%** | **94-99%** |
+
+**Findings:**
+
+1. **Standalone cold start varies**: v2.1.91 standalone showed 27.8% on first request in the full benchmark (vs 84.7% in the earlier single-prompt test). This suggests the initial context loading (CLAUDE.md, memory files, tool schemas) affects cold start differently depending on workspace configuration. npm showed a consistent 84.5%.
+
+2. **Recovery is much faster on v2.1.91**: Standalone recovered from 27.8% to 99.3% in a single request. On v2.1.90, recovery from 14-47% took 3-5 requests.
+
+3. **Sub-agent behavior**: npm sub-agents start at 54.1% and warm to 93%+. Standalone sub-agents start at 0% (full rebuild) but warm quickly to 91%+. The sub-agent gap still exists in v2.1.91 but is less impactful due to fast recovery.
+
+4. **Overall efficiency**: Both installations achieve comparable overall cache (88.4% vs 84.1%). The 4pp difference is primarily from the standalone cold start — once warmed, they converge.
+
+**Recommendation update:** On v2.1.91, **either installation is fine.** npm retains a theoretical advantage (no Sentinel code path) but the practical difference is now negligible. See [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) for full per-request data.
+
+---
+
 ## References
 
-- [Claude Code Official Changelog](https://code.claude.com/docs/en/changelog) — v2.1.89-90 cache fix entries
-- [Lydia Hallie (Anthropic) — "shipped some fixes"](https://x.com/lydiahallie/status/2039107775314428189)
-- [Thariq Shihipar (Anthropic) — prompt caching bug acknowledgment](https://x.com/trq212/status/2027232172810416493)
-- [BENCHMARK.md](BENCHMARK.md) — this file
-- [README.md](README.md) — overview, recommendations, 82-issue list
+- [Claude Code Official Changelog (GitHub)](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) — v2.1.89-91 entries
+- [Lydia Hallie — rate limit statement (thread start)](https://x.com/lydiahallie/status/2039800715607187906)
+- [Lydia Hallie — rate limit statement (thread end)](https://x.com/lydiahallie/status/2039800718371307603)
+- [Thariq Shihipar — prompt caching bug acknowledgment](https://x.com/trq212/status/2027232172810416493)
+- [README.md](README.md) — overview, recommendations, 91-issue list
+- [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) — April 3 integrated test results
 - [TIMELINE.md](TIMELINE.md) — 14-month chronicle of rate limit issues
 
 ---
 
-*All data collected via cc-relay transparent proxy on April 2, 2026. No request/response modification. Raw proxy logs available on request.*
+*v2.1.90 data collected April 2, 2026. v2.1.91 data collected April 3, 2026. All via cc-relay transparent proxy (source-audited, zero request modification).*

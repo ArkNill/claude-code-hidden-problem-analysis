@@ -1,18 +1,27 @@
-# Silent Microcompact — Deep Dive (Bug 4)
+# Silent Context Mutation — Bugs 4 & 5
 
-> **GitHub Issue:** [anthropics/claude-code#42542](https://github.com/anthropics/claude-code/issues/42542)
+Two separate mechanisms silently modify your conversation before it reaches the API. Neither is controllable via environment variables, and both remain active on v2.1.91.
+
+- **Bug 4 (Microcompact):** Earlier tool results replaced with `[Old tool result content cleared]`. 327 events measured. Doesn't hurt cache (99%+ maintained) but destroys context quality.
+- **Bug 5 (Budget enforcement):** Tool results truncated after 200K aggregate chars. 261 events measured. Results reduced to 1-41 chars.
+
+Both are controlled server-side via GrowthBook feature flags — Anthropic can change behavior without a client update. `/export` does NOT show the mutated version — it shows the full context, while the API receives the trimmed one.
+
+> **Issue:** [anthropics/claude-code#42542](https://github.com/anthropics/claude-code/issues/42542)
 > **Discovery:** [@Sn3th](https://github.com/Sn3th), April 2, 2026
-> **Status:** Unfixed — all known gates show "disabled", but context stripping still occurs
+> **Status:** Unfixed in v2.1.91 | **Tested:** npm + standalone, April 3, 2026
 
 ---
 
-## What's Happening
+## Bug 4: Microcompact — What's Happening
 
-Tool results from earlier in a session are silently replaced with `[Old tool result content cleared]`. No compaction notification is shown, no hooks fire. The agent continues operating on degraded context — making confident statements from internalized summaries because the source material is gone.
+Tool results from earlier in a session are silently replaced with `[Old tool result content cleared]`. No compaction notification is shown, no hooks fire. The model continues operating without access to the original tool output — it can no longer quote file contents, reference specific grep results, or verify earlier command outputs.
 
-Sessions doing heavy tool use (50+ file reads, greps, bash commands) see effective context drop to ~40-80K despite the token counter showing far less than the 1M window.
+In heavy tool-use sessions (50+ file reads, greps, bash commands), [@Sn3th](https://github.com/Sn3th) reports effective context dropping to ~40-80K despite the 1M window. Our proxy data supports this: in a 251-message session, 11 distinct message indices were cleared; in a 135-message session, 12 indices. Clearing begins within the first 60 messages and expands as the conversation grows.
 
 ## Three Compaction Mechanisms
+
+These are controlled by [GrowthBook](https://www.growthbook.io/), a feature-flagging system. The Claude Code CLI fetches flags from Anthropic's servers and caches them in `~/.claude.json`. Users cannot disable these flags — Anthropic controls them server-side and can change behavior without a client update.
 
 Source: `src/services/compact/` in the Claude Code binary.
 
@@ -48,11 +57,20 @@ for k in ['tengu_slate_heron', 'tengu_session_memory', 'tengu_sm_compact',
 | `tengu_sm_compact_config` | `{"minTokens": 2000, "maxTokens": 20000, ...}` | identical | identical | identical |
 | `tengu_cache_plum_violet` | `true` | identical | identical | identical |
 
-All flags:
-- `tengu_slate_heron.enabled`: **false** (time-based MC off)
-- `tengu_session_memory`: **false** (session memory off)
-- `tengu_sm_compact`: **false** (SM compact off)
-- `tengu_cache_plum_violet`: **true** (purpose unclear — the only enabled flag)
+### Flag Glossary
+
+| Flag | Purpose | Current Value |
+|------|---------|---------------|
+| `tengu_slate_heron` | Controls time-based microcompact (gap threshold, keep-recent count) | `enabled: false` |
+| `tengu_session_memory` | Gates session memory compact | `false` |
+| `tengu_sm_compact` | Gates SM compact (separate from session memory) | `false` |
+| `tengu_sm_compact_config` | Thresholds for SM compact (min/max tokens, message count) | `{minTokens: 2000, maxTokens: 20000}` |
+| `tengu_cache_plum_violet` | Unknown purpose — the only enabled flag across all surveyed machines | `true` |
+| `tengu_hawthorn_window` | **Aggregate tool result budget** — total chars allowed across all tool results (Bug 5) | `200000` |
+| `tengu_pewter_kestrel` | **Per-tool result size caps** — individual tool output limits (Bug 5) | `{global: 50000, Bash: 30000, Grep: 20000}` |
+| `tengu_summarize_tool_results` | System prompt flag telling the model to expect cleared tool results | `true` |
+
+Despite all microcompact gates showing disabled, context stripping persists — which points to the budget enforcement flags (`hawthorn_window`, `pewter_kestrel`) as the active mechanism, or an undocumented code path that doesn't check these gates.
 
 **4 machines, 4 accounts (3 Linux, 1 Windows), all Max plan, v2.1.90 — every gate shows disabled. Context is still being stripped.**
 
@@ -68,21 +86,27 @@ Even with the gate off, the remote config carries thresholds that are far more a
 
 If this gate flips on via A/B test, sessions will retain 20K tokens max — a fraction of what users paying for 1M context expect.
 
-## Why This Matters for Cache (Connection to Rate Limit Drain)
+## Cache Impact — Revised Understanding (April 3)
 
-Anthropic's prompt caching works by matching exact token prefixes. If microcompact silently modifies or strips tool results mid-conversation:
+**Initial hypothesis (April 2):** We expected microcompact to invalidate prompt cache prefixes, causing 0% cache read and full-price billing.
 
-1. Microcompact triggers silently (no notification)
-2. Old tool results replaced with `[Old tool result content cleared]`
-3. Conversation prefix changes → prompt cache prefix no longer matches
-4. Next API call: **0% cache read** → full-price billing on entire context
-5. Usage burns **5-10x** faster than expected
+**Measured result:** This hypothesis was **partially wrong.** Proxy data across 327 events (all sessions combined) shows:
 
-This chain explains several otherwise-puzzling observations:
-- v2.1.90 fixed cache for some users but not others (depends on whether microcompact triggers)
-- Old Docker-pinned versions that were never updated started draining ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flag change
-- `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` doesn't help (microcompact bypasses it)
-- The drain appears intermittent (GrowthBook A/B testing controls who gets hit)
+| Context | Cache ratio during clearing | Explanation |
+|---------|---------------------------|-------------|
+| Main session | **99%+** — no impact | Clearing substitutes the same marker consistently, so the prefix doesn't change between calls |
+| Sub-agent cold start | **0-39%** — significant drops | Sub-agents build a new cache from the already-cleared context, hitting cold-start penalties |
+| Sub-agent warmed (5+ req) | **94-99%** — normal | After warming, sub-agents stabilize regardless of cleared content |
+
+**The real cost is context quality, not cache billing.** When tool results are cleared:
+- The model cannot accurately reference earlier file contents, grep results, or command outputs
+- This causes repeated failed approaches (the model can't see what it already tried)
+- Long sessions degrade to ~40-80K effective context despite the 1M window (reported by [@Sn3th](https://github.com/Sn3th))
+
+**Related observations:**
+- Old Docker-pinned versions (v2.1.74/86, never updated) started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — this confirms GrowthBook flags are changed server-side without requiring a client update
+- `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` doesn't prevent clearing (microcompact bypasses it entirely)
+- The drain appears intermittent across users — consistent with GrowthBook A/B testing controlling who gets hit and how aggressively
 
 ## Local Reproduction (In Progress)
 
@@ -90,36 +114,46 @@ This chain explains several otherwise-puzzling observations:
 
 Proxy-based request body scanner (cc-relay + `ANTHROPIC_BASE_URL`) detects `[Old tool result content cleared]` in outgoing API requests before they leave the machine. GrowthBook file watcher diffs `~/.claude.json` every 10 seconds.
 
-### Preliminary Results (April 3, 2026)
+### Confirmed Results (April 3, 2026)
 
-Initial observation during a normal working session (not a dedicated stress test):
+Systematic testing with enhanced cc-relay proxy across multiple sessions (3,500+ logged requests, 327 microcompact events total):
 
-- 17 clearing events detected over ~4 minutes
-- Same 7 message indices cleared on every API call
-- GrowthBook disk cache: **no changes** during the entire observation window
+**Clearing Pattern:**
+- **327 events** detected total — 67 and 71 in two major v2.1.90 sessions, remainder across v2.1.91 test sessions and sub-agents
+- Clearing indices **expand over time**: starts at [20,22], grows to [20,22,38,40,44,46,162,166,172,174,206]
+- **All cleared indices are even-numbered** → targets tool_use/tool_result pairs specifically
+- Same indices cleared consistently on every subsequent API call (stable substitution)
 
-What this *tentatively* suggests:
-- The clearing is **client-side** (marker present in outgoing request body)
-- GrowthBook flags don't visibly change at runtime (at least not in the disk cache)
+**Cache Impact — KEY FINDING:**
+- **Main session: NO cache impact.** Ratio stays 99%+ during active clearing. Because the same indices are consistently replaced with the same marker text, the prompt prefix doesn't change → cache stays valid.
+- **Sub-agent cold starts: 0-39% cache drops** observed at moments where clearing is active. This is because sub-agents build a new cache from the already-cleared context.
+- **Practical harm is context quality, not cache cost.** The agent loses access to earlier tool results and cannot accurately quote or reference them.
 
-### What's Still Missing
+**Budget Enforcement (Bug 5) — NEW DISCOVERY:**
 
-This data is from a short observation window (~4 min) during normal use. Before drawing firm conclusions, the following needs to be verified:
+In addition to microcompact, a **separate pre-request pipeline** truncates tool results based on server-controlled GrowthBook thresholds:
 
-1. **Long session behavior** — do new clearing indices appear over 30+ minutes of heavy tool use? Sn3th reports effective context dropping to ~40-80K, which implies clearing expands well beyond 7 indices
-2. **First clearing moment** — need to capture the exact turn where clearing first triggers and measure the cache miss spike at that point
-3. **Clearing trigger conditions** — what determines which tool results get targeted? Message age? Token size? Tool type? Need to correlate cleared indices with message content
-4. **Cache impact quantification** — how large is the cache miss when clearing first occurs vs when it stabilizes? Need before/after cache ratios at the transition point
-5. **Binary code path identification** — search for the literal string `Old tool result content cleared` in the decompiled binary to find the responsible code path and its gate conditions
-6. **GrowthBook network interception** — disk cache watcher only proves the cache doesn't change; the SDK might evaluate differently in-memory without writing back. Need to intercept actual GrowthBook API calls or SDK evaluation
+```
+tengu_hawthorn_window:       200,000 (aggregate tool result cap)
+tengu_pewter_kestrel:        {global: 50000, Bash: 30000, Grep: 20000, Snip: 1000}
+tengu_summarize_tool_results: true
+```
 
-### Next Steps (April 4)
+This runs BEFORE microcompact via `applyToolResultBudget()`. Confirmed active:
+- **261 budget events** detected in a single session
+- Tool results reduced to **1-41 chars** (originally thousands+)
+- Budget exceeded at **242,094 chars** (> 200K cap)
+- v2.1.91 `maxResultSizeChars` override is **MCP-only** — built-in Read/Bash/Grep unaffected
 
-- [ ] Run a dedicated 30+ minute heavy tool-use session with full detection active
-- [ ] Capture the session from cold start to observe the first clearing event
-- [ ] Log which tool results get cleared (content type, size, age) to identify the selection criteria
-- [ ] Set up mitmproxy or equivalent to intercept GrowthBook SDK network calls
-- [ ] Locate the code path in the binary responsible for clearing
+**v2.1.91 Verification:**
+- 14 microcompact events, 71 budget events in v2.1.91 test sessions
+- **No change from v2.1.90** — both bugs persist identically
+
+### Remaining Verification
+
+1. **Binary code path identification** — search for `Old tool result content cleared` in decompiled binary
+2. **GrowthBook network interception** — disk cache shows no changes during clearing; in-memory divergence suspected
+3. **Budget truncation threshold** — exact token count (not char count) at which truncation begins
 
 ## Open Questions
 

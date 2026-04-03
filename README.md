@@ -1,34 +1,70 @@
-# Claude Code Cache Bug Analysis
+# Claude Code Rate Limit Crisis — Root Cause Analysis
 
-Measured analysis of cache bugs in Claude Code that caused **10-20x token inflation** on paid plans (Max 5/20). Includes controlled benchmarks comparing npm vs standalone binary installations.
+> **TL;DR:** Claude Code has **7 confirmed bugs across 5 layers** that drain usage faster than expected. The cache bugs (1-2) are fixed in v2.1.91. Five others — silent tool result truncation, false rate limiting, context stripping, log inflation, and server-side changes — remain unfixed as of v2.1.91 (April 3, 2026). All findings below are backed by proxy-measured data from controlled tests.
 
-> **Last updated:** April 3, 2026
+This repo documents the investigation, from the initial 70-minute drain on a $200/mo Max plan to a systematic 6-layer bug model tested across v2.1.89 through v2.1.91. The analysis is independent and community-driven — Anthropic has not responded on any of the 91+ related GitHub issues.
+
+> **Last updated:** April 3, 2026 — v2.1.91 tested, [CHANGELOG.md ref](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
 
 ---
 
-## Current Status: v2.1.90 — Cache Fixed, But Not Fully Resolved
+## Background
 
-**v2.1.90 fixed the client-side cache regression** (Bug 1 + Bug 2), restoring **86%+ overall cache read ratio** and **95-99% in stable sessions**. However, **multiple users on v2.1.90 still report rapid drain**, pointing to additional bugs beyond the cache layer.
+On April 1, 2026, my Max 20 plan ($200/mo) hit 100% usage in ~70 minutes during normal coding. JSONL analysis showed the affected session averaging **36.1% cache read** (min 21.1%) where it should have been 90%+ — every token billed at full price. An earlier session that day had already degraded to **47.0% average** (233 entries, min 8.3%).
 
-| Version | Installation | Cache Read (stable) | Sub-agent Cold Start | Verdict |
-|---------|-------------|--------------------|--------------------|---------|
-| **v2.1.90** | **npm (Node.js)** | **95-99.8%** | **79-87%** | **Best available** |
-| **v2.1.90** | **Standalone (ELF)** | **95-99.7%** | **47-67%** (recovers to 94-99%) | **Good** |
-| v2.1.89 | Standalone (ELF) | 90-99% | **4-17%** (never recovers) | **Avoid** |
-| v2.1.68 | npm | Normal | Normal | Safe but outdated |
+Immediate workaround was downgrading from v2.1.89 to v2.1.68 (npm, pre-regression baseline). Cache immediately recovered to **97.6% average** (119 entries) on the downgraded version — confirming the regression was v2.1.89-specific. I then set up a transparent monitoring proxy (cc-relay) using the official `ANTHROPIC_BASE_URL` env var to capture per-request data going forward.
 
-**Update to v2.1.90 if you haven't already** — it fixes the biggest drain source. But be aware that at least **three additional bugs** remain unfixed (see [Root Cause](#root-cause) section):
+What began as a personal debugging session turned into a broader investigation as dozens of other users reported the same issue across [91+ GitHub issues](#related-issues). The community — [@Sn3th](https://github.com/Sn3th), [@rwp65](https://github.com/rwp65), [@dbrunet73](https://github.com/dbrunet73), [@luongnv89](https://github.com/luongnv89), and [12 others](#contributors--acknowledgments) — independently found different pieces of the puzzle.
 
-- **Bug 3:** Client-side false rate limiter generates fake "Rate limit reached" errors without calling the API ([#40584](https://github.com/anthropics/claude-code/issues/40584))
-- **Bug 4:** Silent microcompact invalidates prompt cache by stripping tool results mid-session ([#42542](https://github.com/anthropics/claude-code/issues/42542))
-- **Server-side:** 1M context requests incorrectly classified as "extra usage" on Max plans ([#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569))
+This repo consolidates those findings into a structured analysis with measured data.
 
-### What to Do Right Now
+### Anthropic's Position (April 2)
 
-1. **Disable auto-update** — pin v2.1.90 until Anthropic confirms a full fix
-2. **Update to v2.1.90** if you haven't already
-3. **Avoid `--resume`** — still causes full context replay regardless of version
-4. **Monitor cache** with a transparent proxy if you want to verify
+Lydia Hallie (Anthropic) [posted on X](https://x.com/lydiahallie/status/2039800715607187906):
+
+> *"Peak-hour limits are tighter and 1M-context sessions got bigger, that's most of what you're feeling. We fixed a few bugs along the way, but none were over-charging you."*
+
+She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using Sonnet as default, lowering effort level, starting fresh instead of resuming, and capping context with `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000`.
+
+Our measured data agrees that the cache bugs are fixed, but identifies five additional mechanisms that Anthropic's statement doesn't address — see the [bug table below](#whats-happening-april-3-2026).
+
+### Cache TTL (not a bug)
+
+Separately, [@luongnv89](https://github.com/luongnv89) [documented](https://github.com/luongnv89/cc-context-stats/blob/main/context-stats-cache-misses.md) that idle gaps of 13+ hours cause a full 350K-token cache rebuild when resuming (cache write costs $3.75/M vs read at $0.30/M — a 12.5x difference). Our data shows shorter gaps (5-26 minutes) maintain 96%+ cache, so this only affects long idle periods. It's by design (5-minute TTL), not a bug — but worth knowing about.
+
+### What Changed in v2.1.91 ([full changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md))
+
+The most relevant v2.1.91 changes for this analysis:
+- `_meta["anthropic/maxResultSizeChars"]` annotation (up to 500K) — MCP tool results can now opt out of truncation. **Built-in tools are NOT affected.**
+- `--resume` transcript chain break fix — additional stability for session resumption
+- `Edit` tool uses shorter `old_string` anchors — reduces output tokens
+- `stripAnsi` routed through `Bun.stripANSI` — performance improvement that appears to have closed the Sentinel gap between npm and standalone
+
+---
+
+## What's Happening (April 3, 2026)
+
+The original cache regression (v2.1.89 standalone draining 100% in 70 minutes) is **fixed** in v2.1.90-91. Cache read ratios are back to 95-99% in stable sessions, and npm/standalone now perform identically on v2.1.91.
+
+But cache was only part of the story. Proxy-based testing revealed five additional mechanisms that remain active:
+
+| Bug | What It Does | Impact | Status (v2.1.91) | Evidence |
+|-----|-------------|--------|-------------------|----------|
+| **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** — npm=standalone now | [BENCHMARK.md](BENCHMARK.md) |
+| **B2** Resume | `--resume` replays full context uncached | 20x cost per resume | **Fixed** (avoid `--resume` anyway) | [#34629](https://github.com/anthropics/claude-code/issues/34629) |
+| **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached", 0 API calls | **Unfixed** — 151 entries / 65 sessions | [#40584](https://github.com/anthropics/claude-code/issues/40584) |
+| **B4** Microcompact | Tool results silently cleared mid-session | Context quality degrades (cache unaffected) | **Unfixed** — 327 events detected | [#42542](https://github.com/anthropics/claude-code/issues/42542) |
+| **B5** Budget cap | 200K aggregate limit on tool results | Older results truncated to 1-41 chars | **Unfixed** (MCP override only) | [MICROCOMPACT.md](MICROCOMPACT.md) |
+| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.87x local token inflation | **Unfixed** | [#41346](https://github.com/anthropics/claude-code/issues/41346) |
+| **Server** | Peak-hour limits tightened + 1M billing bug | Reduced effective quota | **By design** (Anthropic confirmed) | [#42616](https://github.com/anthropics/claude-code/issues/42616) |
+
+### What You Can Do
+
+1. **Update to v2.1.91** — this fixes the cache regression that caused the worst drain
+2. **npm or standalone — either is fine on v2.1.91** (Sentinel gap closed, [84.7% identical cold start](#measured-data))
+3. **Don't use `--resume` or `--continue`** — replays full context as billable input
+4. **Start fresh sessions periodically** — the 200K tool result cap (B5) means older file reads get silently truncated after ~15-20 tool uses
+5. **Avoid `/dream` and `/insights`** — background API calls that drain silently
 
 ```jsonc
 // ~/.claude/settings.json — disable auto-update
@@ -41,16 +77,18 @@ Measured analysis of cache bugs in Claude Code that caused **10-20x token inflat
 
 ---
 
-## npm vs Standalone Binary — Which Should I Use?
+## npm vs Standalone Binary
 
-Claude Code ships in two forms. The choice matters for cache efficiency:
+**Short answer: on v2.1.91, it doesn't matter.** Both achieve identical 84.7% cold-start cache read and 97-99% in stable sessions. The Sentinel gap that existed in v2.1.90 (47-67% vs 79-87% on sub-agent cold starts) has been closed.
+
+If you want the details, Claude Code ships in two forms:
 
 ### Standalone Binary (ELF)
 
 - Installed via `curl -fsSL https://claude.ai/install.sh | bash`
 - Ships as a **single ELF 64-bit executable** (~228MB) with embedded Bun runtime
 - Contains the Sentinel replacement mechanism (`cch=00000`) that can corrupt cache prefixes
-- **v2.1.90 status:** Sentinel bug **partially mitigated** — cold starts still lag but cache recovers quickly
+- **v2.1.91 status:** Cold start varies (27.8-84.7% depending on workspace), but recovers to 99%+ in 1-2 requests. Sub-agents start at 0% but warm quickly to 91%+
 
 ### npm Package (Node.js)
 
@@ -69,7 +107,7 @@ Claude Code ships in two forms. The choice matters for cache efficiency:
 | Sub-agent warmed (5+ req) | 87-94% | 94-99% | Tie |
 | Usage for full test suite | 7% of Max 20 | 5% of Max 20 | Tie |
 
-**Bottom line:** npm is marginally better for sub-agent-heavy workflows. For everything else, they're equivalent on v2.1.90. See **[BENCHMARK.md](BENCHMARK.md)** for raw data and methodology.
+**On v2.1.90:** npm had a 12-40pp advantage on sub-agent cold starts (79-87% vs 47-67%). Both reached 94-99% once warmed (3-5 requests). **On v2.1.91:** this gap is closed — both hit 84.7% on cold start. See **[BENCHMARK.md](BENCHMARK.md)** for per-request data.
 
 ### Coexistence Setup
 
@@ -93,7 +131,9 @@ alias claude-bin="ANTHROPIC_BASE_URL=http://localhost:8080 /path/to/standalone/c
 
 ## Root Cause
 
-Four client-side bugs (two cache, one rate limiter, one compaction) plus server-side accounting issues. The first two were identified through community reverse engineering ([Reddit analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)); the latter two discovered April 2-3, 2026:
+Below are the technical details for each bug. Bugs 1-2 (cache layer) are fixed. Bugs 3-5 and 8 are the ones still causing problems — if you're experiencing drain on v2.1.91, these are why.
+
+Bugs 1-2 were identified through community reverse engineering ([Reddit analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3, 2026:
 
 ### Bug 1 — Sentinel Replacement (standalone binary only)
 
@@ -118,7 +158,7 @@ The standalone binary's embedded Bun fork contains a `cch=00000` sentinel replac
 **Official fix in v2.1.90 ([changelog](https://code.claude.com/docs/en/changelog)):**
 > *"Fixed --resume causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)"*
 
-**Note:** While the changelog states this is fixed, community reports (e.g., `claude -p --resume` in headless harness mode) suggest edge cases may remain. We recommend continuing to avoid `--resume` until fully verified.
+**Note:** `--continue` has the same cache invalidation behavior ([#42338](https://github.com/anthropics/claude-code/issues/42338) confirmed). While v2.1.90-91 changelogs address `--resume`, we recommend avoiding both `--resume` and `--continue` until fully verified — start fresh sessions instead.
 
 ### Bug 3 — Client-Side False Rate Limiter (all versions)
 
@@ -133,18 +173,18 @@ The local rate limiter generates **synthetic "Rate limit reached" errors** witho
 }
 ```
 
-Triggered by **large transcripts (~74MB+)** and **concurrent sub-agent spawns**. The rate limiter multiplies `context_size × concurrent_requests`, so multi-agent workflows get blocked even when each individual request is small.
+Triggered by large transcripts and concurrent sub-agent spawns. [@rwp65](https://github.com/rwp65) observed it with a ~74MB transcript in [#40584](https://github.com/anthropics/claude-code/issues/40584). The rate limiter appears to multiply `context_size × concurrent_requests`, so multi-agent workflows get blocked even when each individual request is small.
 
 - **Discovery:** [@rwp65](https://github.com/rwp65) in [#40584](https://github.com/anthropics/claude-code/issues/40584) (March 29, 2026)
 - **Cross-referenced by:** [@marlvinvu](https://github.com/marlvinvu) across [#40438](https://github.com/anthropics/claude-code/issues/40438), [#39938](https://github.com/anthropics/claude-code/issues/39938), [#38239](https://github.com/anthropics/claude-code/issues/38239)
-- **Status:** **Unfixed** — present in all versions including v2.1.90
+- **Status:** **Unfixed** — present in all versions through v2.1.91
 - **Impact:** Users see "Rate limit reached" immediately, even after hours of inactivity when the budget should have fully reset. No API call is made, so the error is entirely client-generated.
 
-### Bug 4 — Silent Microcompact → Cache Invalidation (v2.1.89+)
+### Bug 4 — Silent Microcompact → Context Quality Degradation (v2.1.89+)
 
 **GitHub Issue:** [anthropics/claude-code#42542](https://github.com/anthropics/claude-code/issues/42542)
 
-Three compaction mechanisms in `src/services/compact/` run **silently on every API call**, stripping old tool results without user notification. This invalidates prompt cache prefixes, causing subsequent API calls to be billed at full price.
+Three compaction mechanisms in `src/services/compact/` run **silently on every API call**, stripping old tool results without user notification.
 
 | Mechanism | Source | Trigger | Control |
 |-----------|--------|---------|---------|
@@ -156,19 +196,66 @@ Three compaction mechanisms in `src/services/compact/` run **silently on every A
 - All three bypass `DISABLE_AUTO_COMPACT` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`
 - Controlled by **server-side GrowthBook A/B testing flags** — Anthropic can change behavior without a client update
 - Tool results silently replaced with `[Old tool result content cleared]` — no compaction notification shown
-- This explains why v2.1.90 fixes cache for some users but not others (depends on GrowthBook flag assignment)
-- Also explains why old Docker versions that were never updated started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed
+- **327 clearing events across all tested sessions** detected via proxy across multiple sessions
+- All cleared indices are **even-numbered** → targets tool_use/tool_result pairs specifically
+- Cleared indices **expand over time** as conversation grows
 
-**Cache invalidation chain:**
-1. Microcompact triggers silently (GrowthBook flag)
-2. Old tool results stripped → conversation prefix changes
-3. Prompt cache prefix no longer matches → cache miss
-4. Next API call: 0% cache read → full-price billing on entire context
-5. Usage burns 5-10x faster than expected
+**Cache impact (updated April 3 — measured):**
 
-- **Update (April 3):** GrowthBook flag survey across 4 machines / 4 accounts shows **all gates disabled** — yet context is still being stripped. See [MICROCOMPACT.md](MICROCOMPACT.md) for full analysis, collected flag data, and open questions (runtime vs disk cache divergence, server-side clearing hypothesis).
+Our proxy-based testing revealed a **correction** to the initial hypothesis: microcompact does NOT cause sustained cache invalidation in main sessions.
+
+| Context | Cache ratio during clearing |
+|---------|---------------------------|
+| Main session | **99%+** — no impact (stable substitution preserves prefix) |
+| Sub-agent cold start | **0-39%** — drops observed at clearing moments |
+| Sub-agent warmed | **94-99%** — recovers normally |
+
+Cache ratio stays high because the same `[Old tool result content cleared]` marker is substituted consistently, preserving the prompt prefix between calls. But the model can no longer see the original file contents or command outputs — it only sees the placeholder. In practice, this means the agent can't accurately quote earlier tool results and may retry approaches it already tried. [@Sn3th](https://github.com/Sn3th) reports effective context dropping to ~40-80K tokens in sessions with 50+ tool uses despite the 1M window — a 95-96% reduction in usable context.
+
+- **Update (April 3):** GrowthBook flag survey across 4 machines / 4 accounts shows **all gates disabled** — yet context is still being stripped (a compaction code path independent of the three documented GrowthBook-gated mechanisms). See [MICROCOMPACT.md](MICROCOMPACT.md) for full analysis.
 - **Discovery:** [@Sn3th](https://github.com/Sn3th) in [#42542](https://github.com/anthropics/claude-code/issues/42542) (April 2, 2026)
-- **Status:** **Unfixed** — present in v2.1.89+ and controlled server-side. All known GrowthBook gates show disabled but stripping continues.
+- **Status:** **Unfixed** in v2.1.91. 14 events detected in v2.1.91 test sessions, identical pattern.
+
+### Bug 5 — Tool Result Budget Enforcement (all versions, NEW)
+
+**Discovered:** April 3, 2026 (via cc-relay proxy enhancement)
+**Source:** [@Sn3th](https://github.com/Sn3th) identified the GrowthBook flags; we confirmed behavioral activation.
+
+A **separate pre-request pipeline** (`applyToolResultBudget()`) truncates tool results based on server-controlled thresholds. This runs BEFORE microcompact (Bug 4) and is independent of it.
+
+**Active GrowthBook flags (confirmed in `~/.claude.json`):**
+```
+tengu_hawthorn_window:       200,000  (aggregate tool result cap across all messages)
+tengu_pewter_kestrel:        {global: 50000, Bash: 30000, Grep: 20000, Snip: 1000}
+tengu_summarize_tool_results: true    (system prompt tells model to expect clearing)
+```
+
+**Measured impact:**
+- **261 budget events** detected in a single session when total tool result chars exceeded 200K
+- Tool results reduced to **1-41 characters** (from original thousands+)
+- Budget threshold exceeded at **242,094 chars** (> 200K cap)
+- After ~15-20 file reads, older results are silently truncated
+
+**v2.1.91:** Added `_meta["anthropic/maxResultSizeChars"]` (up to 500K) — but this only applies to **MCP tool results**. Built-in tools (Read, Bash, Grep, Glob, Edit) are **not affected** by this override. The 200K aggregate cap remains for normal usage.
+
+**No env var override exists.** `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, and all other known environment variables do not touch this code path.
+
+### Bug 8 — JSONL Log Duplication (all versions)
+
+**GitHub Issue:** [anthropics/claude-code#41346](https://github.com/anthropics/claude-code/issues/41346)
+
+Extended thinking generates **2-5 PRELIM entries** per API call in session JSONL files, with identical `cache_read_input_tokens` and `cache_creation_input_tokens` as the FINAL entry. This inflates local token accounting.
+
+**Measured (April 3):**
+
+| Session Type | PRELIM | FINAL | Ratio | Token Inflation |
+|-------------|--------|-------|-------|----------------|
+| Main session | 79 | 82 | 0.96x | **2.87x** |
+| Sub-agent | 39 | 20 | 1.95x | — |
+| Sub-agent | 12 | 7 | 1.71x | — |
+| Previous session | 16 | 6 | **2.67x** | — |
+
+**Open question:** Does the server-side rate limiter count PRELIM entries? If yes, extended thinking sessions are charged 2-3x more against the rate limit than the actual API usage.
 
 ---
 
@@ -178,13 +265,15 @@ Three compaction mechanisms in `src/services/compact/` run **silently on every A
 
 Transparent local monitoring proxy using [`ANTHROPIC_BASE_URL`](https://docs.anthropic.com/en/docs/claude-code/settings#environment-variables) (official environment variable). The proxy logs `cache_creation_input_tokens` and `cache_read_input_tokens` from each API response without modifying requests or responses (source-audited).
 
-### v2.1.89 Standalone — Before Fix (Broken)
+### v2.1.89 Standalone — Before Fix (Broken, JSONL data)
 
-| Session | Turns | Cache Read Ratio | Status |
-|---------|-------|-----------------|--------|
-| Session A | 168 | **4.3%** | poor — 20x cost inflation |
-| Session B | 89 | **22.6%** | poor |
-| Session C | 233 | **34.6%** | poor |
+| Session | Entries | Avg Cache Read | Min | Status |
+|---------|---------|---------------|-----|--------|
+| `64d42269` (4/1 16:33) | 233 | **47.0%** | 8.3% | drain starting |
+| `9100c2d2` (4/1 18:04) | 89 | **36.1%** | 21.1% | worst drain — triggered investigation |
+| Session A (earlier JSONL) | 168 | **4.3%** | — | poor — 20x cost inflation |
+
+After downgrading to v2.1.68 (npm): `892388f6` recovered to **97.6% average** (119 entries, min 60.9%).
 
 ### v2.1.90 — After Fix (Both Installations)
 
@@ -197,14 +286,19 @@ Transparent local monitoring proxy using [`ANTHROPIC_BASE_URL`](https://docs.ant
 
 Full per-request data and warming curves: **[BENCHMARK.md](BENCHMARK.md)**
 
-### Version Comparison Summary
+### Version Comparison Summary (Full Benchmark, Same Scenarios)
 
-| Metric | v2.1.89 Standalone | v2.1.90 Standalone | v2.1.90 npm |
-|--------|-------------------|-------------------|-------------|
-| Sub-agent cold start | **4-17%** (never recovers) | **47-67%** (recovers to 94-99%) | **79-87%** |
-| Stable session | 90-99% | **95-99.7%** | **95-99.8%** |
-| Usage for test suite | 100% in ~70 min | **5%** | **7%** |
-| Verdict | **Avoid** | **Good** | **Optimal** |
+| Metric | v2.1.89 Standalone | v2.1.90 npm | v2.1.90 standalone | v2.1.91 npm | v2.1.91 standalone |
+|--------|-------------------|------------|-------------------|------------|-------------------|
+| Cold start | **4-17%** | 63-80% | **14-47%** | **84.5%** | **27.8%** |
+| Recovery to 95%+ | Never | 3-5 reqs | 3-5 reqs | **2 reqs** | **1 req** |
+| Sub-agent cold | — | 54-80% | 14-47% | **54%** | **0%** |
+| Sub-agent stable | — | 87-94% | 94-99% | **93-99%** | **91-99%** |
+| Stable session | 90-99% | **95-99.8%** | **95-99.7%** | **98-99.6%** | **94-99%** |
+| Overall | ~20% | 86.4% | 86.2% | **88.4%** | **84.1%** |
+| Verdict | **Avoid** | Good | Good | **Best** | **Good** |
+
+v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84.7% in single-prompt test), but recovery is dramatically faster than v2.1.90 (1 request vs 3-5). Both installations converge to 94-99% once warmed. See **[BENCHMARK.md](BENCHMARK.md)** for per-request data.
 
 ---
 
@@ -217,20 +311,20 @@ Full per-request data and warming curves: **[BENCHMARK.md](BENCHMARK.md)**
 | `--resume` | Replays entire conversation history as billable input including opaque thinking block signatures | 500K+ tokens per resume ([#42260](https://github.com/anthropics/claude-code/issues/42260)) |
 | `/dream`, `/insights` | Background API calls consume tokens without visible output | Silent drain ([#40438](https://github.com/anthropics/claude-code/issues/40438)) |
 | v2.1.89 or earlier standalone | Sentinel bug causes sustained 4-17% cache read | 3-4x token waste, never recovers |
-| Enabling auto-update | Future versions may reintroduce regressions | Pin v2.1.90 until official fix confirmed |
+| Enabling auto-update | Future versions may reintroduce regressions | Pin v2.1.91 until Bugs 3-5 are fixed |
 
 ### Behaviors to Use with Caution
 
 | Behavior | Why | Recommendation |
 |----------|-----|----------------|
-| Parallel sub-agents (single terminal) | Each agent starts with fresh context, but warms up and shares billing context | **Safe** — agents warm up within 1-2 requests |
+| Parallel sub-agents (single terminal) | Each agent starts with fresh context, but warms up and shares billing context | **Safe** — agents warm up to 94-99% after 3-5 requests |
 | Multiple terminals simultaneously | Each terminal is a fully independent session — no cache sharing, parallel quota drain | **Limit to one active terminal** |
 | Large CLAUDE.md / context files | Sent on every turn — with broken cache, billed at full price each time | Keep lean; less critical on v2.1.90 with working cache |
 | Session start / compaction | `cache_creation` spikes are structural and unavoidable | Normal — budget for it |
 
 ### Server-Side Factors (Unresolved)
 
-Even with cache working perfectly (91-99%), multiple users report faster quota drain compared to 2-3 weeks ago. At least three server-side issues contribute:
+Even with cache at 95-99%, drain persists. As of April 3, the [#38335 mega-thread](https://github.com/anthropics/claude-code/issues/38335) has 365+ comments and [#16157](https://github.com/anthropics/claude-code/issues/16157) has 1,400+ — both still active with new reports on v2.1.90-91. At least three server-side issues contribute:
 
 **1. Server-side accounting change:** Old Docker versions (v2.1.74, v2.1.86 — never updated) started draining fast recently, proving the issue isn't purely client-side ([#37394](https://github.com/anthropics/claude-code/issues/37394), reported by [@pablofuenzalidadf](https://github.com/pablofuenzalidadf)).
 
@@ -258,21 +352,21 @@ cat > ~/.claude/settings.json << 'EOF'
 EOF
 
 # 3. Verify
-claude --version   # should show 2.1.90
+claude --version   # should show 2.1.91 or later
 file $(which claude)   # should show symbolic link to cli.js
 ```
 
 ### For Existing Standalone Users
 
 ```bash
-# 1. Update to v2.1.90
+# 1. Update to v2.1.91
 claude update
 
 # 2. Disable auto-update (add to existing settings.json)
 # Add "DISABLE_AUTOUPDATER": "1" to the "env" section
 
 # 3. Verify
-claude --version   # should show 2.1.90
+claude --version   # should show 2.1.91 or later
 ```
 
 ### Optional: Monitor Cache Efficiency
@@ -296,18 +390,20 @@ The session JSONL files in `~/.claude/projects/` contain usage data for each tur
 - **Healthy session:** `cache_read` >> `cache_creation` (read ratio > 80%)
 - **Affected session:** `cache_creation` >> `cache_read` (read ratio < 40%)
 
-If most sessions show low read ratios, you're likely on an affected version. Update to v2.1.90.
+If most sessions show low read ratios, you're likely on an affected version. Update to v2.1.91.
 
 ---
 
 ## Related Issues
 
 ### Root Cause Bugs
-- [#40524](https://github.com/anthropics/claude-code/issues/40524) — Conversation history invalidated (Bug 1: sentinel) — **fixed in v2.1.89-90**
-- [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta) — **fixed in v2.1.90**
+- [#40524](https://github.com/anthropics/claude-code/issues/40524) — Conversation history invalidated (Bug 1: sentinel) — **improved in v2.1.89-91**
+- [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta) — **improved in v2.1.90-91**
 - [#40652](https://github.com/anthropics/claude-code/issues/40652) — cch= billing hash substitution
-- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **Client-side false rate limiter** (Bug 3: synthetic model, 0 tokens) — **unfixed**
-- [#42542](https://github.com/anthropics/claude-code/issues/42542) — **Silent microcompact → cache invalidation** (Bug 4: GrowthBook-controlled) — **unfixed**
+- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **Client-side false rate limiter** (Bug 3: 151 synthetic entries confirmed) — **unfixed**
+- [#42542](https://github.com/anthropics/claude-code/issues/42542) — **Silent microcompact → context degradation** (Bug 4: 327 events, cache unaffected) — **unfixed**
+- Bug 5: **Tool result budget enforcement** (200K aggregate cap, discovered via GrowthBook flags) — **unfixed** (v2.1.91 MCP override only)
+- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL log duplication** (Bug 8: 2.87x PRELIM inflation) — **unfixed**
 
 ### Server-Side Billing Bugs
 - [#42616](https://github.com/anthropics/claude-code/issues/42616) — Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M context
@@ -329,21 +425,31 @@ If most sessions show low read ratios, you're likely on an affected version. Upd
 
 ### Anthropic Official Response
 
-Anthropic has **not responded on any GitHub issue** (2+ months of silence across 82 issues). Communication has been limited to personal social media:
+**GitHub:** Zero responses across 91+ rate-limit issues (2+ months of silence).
+
+**April 2, 2026 — Lydia Hallie (Anthropic, Product) posted on X:**
+
+> *"Peak-hour limits are tighter and 1M-context sessions got bigger, that's most of what you're feeling. We fixed a few bugs along the way, but none were over-charging you."*
+
+**Our measured data raises questions about this assessment:**
+- **Bug 5 (200K cap):** Tool results silently truncated to 1-41 chars after the aggregate 200K threshold. Users paying for 1M context effectively have a 200K tool result budget for built-in tools — the rest is silently discarded.
+- **Bug 3 (synthetic RL):** 151 `<synthetic>` entries across 65 sessions on our setup alone. The client blocks API calls without server involvement — users see "Rate limit reached" with zero actual API consumption.
+- **Bug 8 (PRELIM duplication):** Extended thinking sessions log 2-3x more token entries than actual API calls. Whether the server-side rate limiter counts these remains an open question.
 
 | Who | Platform | What | Link |
 |-----|----------|------|------|
-| **Lydia Hallie** (Product) | X | *"We shipped some fixes on the Claude Code side that should help"* | [Post](https://x.com/lydiahallie/status/2039107775314428189) |
-| **Thariq Shihipar** (Technical Staff) | X | *"We've reset rate limits... bug with prompt caching... hotfixed in 2.1.62"* (earlier incident) | [Post](https://x.com/trq212/status/2027232172810416493) |
-| **@anthropicai** | Threads | General Claude Code feature updates (no rate limit specifics) | [Post](https://www.threads.net/@anthropicai/post/DHeO-oyPjMb/) |
-| **Official Changelog** | Docs | v2.1.89-90 cache fix entries | [Changelog](https://code.claude.com/docs/en/changelog) |
+| **Lydia Hallie** | X | Full statement on rate limits (thread start) | [Post 1](https://x.com/lydiahallie/status/2039800715607187906) |
+| **Lydia Hallie** | X | Follow-up with usage tips (thread end) | [Post 2](https://x.com/lydiahallie/status/2039800718371307603) |
+| **Lydia Hallie** | X | *"We shipped some fixes that should help"* (earlier) | [Post](https://x.com/lydiahallie/status/2039107775314428189) |
+| **Thariq Shihipar** | X | *"Bug with prompt caching... hotfixed"* (earlier incident) | [Post](https://x.com/trq212/status/2027232172810416493) |
+| **Official Changelog** | GitHub | v2.1.89-91 fix entries | [CHANGELOG.md](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) |
 
 ### Community Engagement
 
-As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90 benchmark update + Bug 3/4 cross-references). Anthropic official response on GitHub: **zero**.
+As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90-91 benchmark updates + Bug 3-5 cross-references). Anthropic official response on GitHub: **zero**.
 
 <details>
-<summary><strong>All 91 issues with root cause analysis + v2.1.90 update posted</strong> (click to expand)</summary>
+<summary><strong>All 91 issues with root cause analysis + v2.1.91 update posted</strong> (click to expand)</summary>
 
 | # | Issue | Title |
 |---|-------|-------|
@@ -449,6 +555,9 @@ As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90 be
 - [cc-cache-fix](https://github.com/Rangizingo/cc-cache-fix) — Community cache patch + test toolkit
 - [cc-diag](https://github.com/nicobailey/cc-diag) — mitmproxy-based Claude Code traffic analysis
 - [claude-code-router](https://github.com/pathintegral-institute/claude-code-router) — Transparent proxy for Claude Code
+- [CUStats](https://custats.info) — Real-time usage tracking and visualization
+- [context-stats](https://github.com/luongnv89/cc-context-stats) — Per-interaction cache metrics export and analysis (by [@luongnv89](https://github.com/luongnv89))
+- [BudMon](https://github.com/weilhalt/budmon) — Desktop dashboard for rate-limit header monitoring
 
 ### Token Optimization Tools (complementary, not bug fixes)
 - [rtk](https://github.com/rtk-ai/rtk) — Tool output compression (trims CLI/test results post-execution, reduces input token volume)
@@ -461,17 +570,39 @@ As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90 be
 | File | Description |
 |------|-------------|
 | [README.md](README.md) | This file — overview, current status, and recommendations |
-| [BENCHMARK.md](BENCHMARK.md) | Controlled npm vs standalone benchmark with raw per-request data |
+| [BENCHMARK.md](BENCHMARK.md) | Controlled npm vs standalone benchmark with raw per-request data (v2.1.90) |
+| [MICROCOMPACT.md](MICROCOMPACT.md) | Deep dive on silent context stripping (Bug 4) + tool result budget (Bug 5) |
 | [TIMELINE.md](TIMELINE.md) | 14-month chronicle of rate limit issues (Phase 1-9, 50+ issues) |
+| [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) | April 3 integrated test results — all 6 bugs verified with measured data |
 
 ## Environment
 
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
-- **Versions tested:** v2.1.90 (npm + standalone benchmark), v2.1.89 (affected), v2.1.81 (patched workaround), v2.1.68 (pre-bug baseline)
-- **Monitoring:** cc-relay transparent proxy (source-audited, zero request modification)
+- **Versions tested:** v2.1.91 (npm + standalone head-to-head), v2.1.90 (npm + standalone benchmark), v2.1.89 (affected), v2.1.68 (pre-bug baseline)
+- **Monitoring:** cc-relay v2 transparent proxy — microcompact detection, budget enforcement scanning, session ID support, JSONL analyzer
 - **Date:** April 3, 2026
 
 ---
+
+## Contributors & Acknowledgments
+
+This analysis builds on work by many community members who independently investigated and measured these issues:
+
+| Who | Contribution |
+|-----|-------------|
+| [@Sn3th](https://github.com/Sn3th) | Discovered and documented the three microcompact mechanisms (Bug 4), identified GrowthBook flag extraction method, found the additional `applyToolResultBudget()` pipeline (Bug 5) and per-tool caps, confirmed server-side context mutation across multiple machines |
+| [@rwp65](https://github.com/rwp65) | Discovered the client-side false rate limiter (Bug 3) with detailed log evidence showing `<synthetic>` model entries |
+| [@arizonawayfarer](https://github.com/arizonawayfarer) | Provided Windows GrowthBook flag dumps confirming cross-platform consistency, tested with telemetry disabled |
+| [@dbrunet73](https://github.com/dbrunet73) | Published real-world OTel comparison data (v2.1.88 vs v2.1.90) confirming cache improvement |
+| [@maiarowsky](https://github.com/maiarowsky) | Confirmed Bug 3 on v2.1.90 with 26 synthetic entries across 13 sessions |
+| [@luongnv89](https://github.com/luongnv89) | Analyzed cache TTL behavior with per-interaction granularity, built [CUStats](https://custats.info) and [context-stats](https://github.com/luongnv89/cc-context-stats) |
+| [@edimuj](https://github.com/edimuj) | Measured grep/file-read token waste (3.5M tokens across 1800+ calls), built [tokenlean](https://github.com/edimuj/tokenlean) |
+| [@amicicixp](https://github.com/amicicixp) | Verified v2.1.90 cache improvement with before/after testing |
+| [@simpolism](https://github.com/simpolism) | Identified v2.1.90 changelog correlation with `--resume` cache fix |
+| [@weilhalt](https://github.com/weilhalt) | Built [BudMon](https://github.com/weilhalt/budmon) for real-time rate-limit header monitoring |
+| [@pablofuenzalidadf](https://github.com/pablofuenzalidadf) | Reported old Docker versions (v2.1.74/86) draining — key server-side evidence ([#37394](https://github.com/anthropics/claude-code/issues/37394)) |
+| [@SC7639](https://github.com/SC7639) | Provided additional regression data confirming the mid-March timeline |
+| Reddit community | [Reverse engineering analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6) of cache sentinel mechanism |
 
 *This analysis is based on community research and personal measurement. It is not endorsed by Anthropic. All workarounds use only official tools and documented features.*

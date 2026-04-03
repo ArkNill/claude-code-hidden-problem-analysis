@@ -12,8 +12,8 @@
 | **Duration** | 14 months (2025-02 ~ 2026-04-03, ongoing) |
 | **Major escalation cycles** | 4 |
 | **Largest issue** | #16157 — 1,422 comments, 647 thumbs_up |
-| **Root causes identified** | 9 client-side + 6 server-side (compound) |
-| **Anthropic official response** | Zero (2+ months silence across all rate-limit issues) |
+| **Root causes identified** | 11 client-side + 6 server-side (compound) |
+| **Anthropic official response** | X/Twitter only (Lydia Hallie, April 2-3). Zero GitHub responses across 91+ issues |
 
 ---
 
@@ -185,7 +185,10 @@ Two significant discoveries by community investigation:
 Local rate limiter generates synthetic "Rate limit reached" errors (`model: "<synthetic>"`, `input_tokens: 0`) without calling the API. Triggered by large transcripts + concurrent sub-agents. Cross-referenced by [@marlvinvu](https://github.com/marlvinvu) across [#40438](https://github.com/anthropics/claude-code/issues/40438), [#39938](https://github.com/anthropics/claude-code/issues/39938), [#38239](https://github.com/anthropics/claude-code/issues/38239). **Unfixed in v2.1.90.**
 
 **Bug 4 — Silent microcompact → cache invalidation** ([#42542](https://github.com/anthropics/claude-code/issues/42542), discovered by [@Sn3th](https://github.com/Sn3th)):
-Three compaction mechanisms (`microCompact.ts:422`, `microCompact.ts:305`, `sessionMemoryCompact.ts:57`) silently strip tool results on every API call, controlled by server-side GrowthBook A/B flags. This invalidates prompt cache prefixes → 0% cache read → full-price billing. Explains why v2.1.90 works for some but not others (GrowthBook assignment varies). Also explains why old Docker versions started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed without client update. **Unfixed, server-controlled.**
+Three compaction mechanisms (`microCompact.ts:422`, `microCompact.ts:305`, `sessionMemoryCompact.ts:57`) silently strip tool results on every API call, controlled by server-side GrowthBook A/B flags. Proxy testing (April 3) showed **cache ratio stays 99%+ in main sessions** during clearing — the stable substitution preserves the prompt prefix. The actual cost is **context quality degradation** (model loses access to earlier tool results). Also explains why old Docker versions started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed without client update. **Unfixed through v2.1.91, server-controlled.**
+
+**Bug 5 — Tool result budget enforcement** (discovered by [@Sn3th](https://github.com/Sn3th), confirmed by proxy April 3):
+`applyToolResultBudget()` runs before microcompact in the request pipeline, enforcing a 200K aggregate cap on tool results via `tengu_hawthorn_window` GrowthBook flag. Per-tool caps (Grep 20K, Bash 30K) via `tengu_pewter_kestrel`. 261 budget events measured in one session — tool results truncated to 1-41 chars. v2.1.91 `maxResultSizeChars` override is MCP-only. **Unfixed for built-in tools.**
 
 **Server-side 1M billing regression** ([#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569)):
 Max plan 1M context (free since March 13) incorrectly classified as "extra usage." Debug log shows 429 at 23K tokens with request ID `req_011CZf8TJf84hAUziB6LuRoc`. **Server-side bug, unfixed.**
@@ -206,11 +209,20 @@ Anthropic shipped cache-related fixes in v2.1.89-90 without any GitHub issue res
 | v2.1.90 | Rate-limit options dialog infinite loop | Session crash |
 | v2.1.90 | SSE large frame quadratic → linear | Performance |
 
-**Staff acknowledgment (X only, not GitHub):**
-- [Lydia Hallie](https://x.com/lydiahallie/status/2039107775314428189): *"We shipped some fixes on the Claude Code side that should help"*
+**v2.1.91 (April 2-3):**
+
+| Version | Fix | Addresses |
+|---------|-----|-----------|
+| v2.1.91 | `_meta["anthropic/maxResultSizeChars"]` up to 500K | Bug 10 — **MCP-only workaround** (built-in tools unaffected) |
+| v2.1.91 | `--resume` transcript chain break fix | Bug 2 (additional fix) |
+| v2.1.91 | Edit tool shorter `old_string` anchors | Output token reduction |
+
+**Staff response (April 2-3):**
+- [Lydia Hallie](https://x.com/lydiahallie/status/2039800715607187906) (thread): *"Peak-hour limits are tighter and 1M-context sessions got bigger, that's most of what you're feeling. We fixed a few bugs along the way, but none were over-charging you."* Community reaction was strongly negative — measured data from multiple independent investigators shows additional unfixed bugs (see [analysis repo](https://github.com/ArkNill/claude-code-cache-analysis)).
+- [Lydia Hallie](https://x.com/lydiahallie/status/2039107775314428189) (earlier): *"We shipped some fixes on the Claude Code side that should help"*
 - [Thariq Shihipar](https://x.com/trq212/status/2027232172810416493): Confirmed prompt caching bugs being investigated (earlier incident)
 
-**Independent verification:** Controlled benchmark confirms v2.1.90 achieves 86%+ overall cache read and 95-99% in stable sessions — both npm and standalone. See [BENCHMARK.md](BENCHMARK.md).
+**Independent verification:** Controlled benchmarks confirm v2.1.90-91 achieve 82-86% overall cache read and 95-99% in stable sessions. v2.1.91 closes the npm/standalone gap (84.7% identical cold start). See [BENCHMARK.md](BENCHMARK.md).
 
 ---
 
@@ -230,7 +242,9 @@ These are compound — multiple bugs interact to produce the observed behavior.
 | 6 | **Memory file double-load** — in git worktrees | [#24283](https://github.com/anthropics/claude-code/issues/24283) | — | Premature compaction |
 | 7 | **Thinking signature replay** — opaque base64 blocks resent on resume | [#42260](https://github.com/anthropics/claude-code/issues/42260) | — | 500K+ tokens per resume |
 | 8 | **Client-side false rate limiter** — synthetic error blocks requests without API call | [#40584](https://github.com/anthropics/claude-code/issues/40584) | All | Instant "Rate limit reached" with `model: "<synthetic>"`, `input_tokens: 0`. **Unfixed** |
-| 9 | **Silent microcompact → cache invalidation** — GrowthBook-controlled compaction strips tool results | [#42542](https://github.com/anthropics/claude-code/issues/42542) | v2.1.89+ | Cache prefix invalidated → 0% read → full-price billing. **Unfixed, server-controlled** |
+| 9 | **Silent microcompact → context degradation** — GrowthBook-controlled compaction strips tool results | [#42542](https://github.com/anthropics/claude-code/issues/42542) | v2.1.89+ | Context quality loss (cache stays 99%+ in main session). **Unfixed, server-controlled** |
+| 10 | **Tool result budget enforcement** — `applyToolResultBudget()` caps tool results at 200K aggregate | GrowthBook flags | All | Tool results truncated to 1-41 chars after threshold. **Unfixed** (v2.1.91 MCP override only) |
+| 11 | **JSONL log duplication** — extended thinking generates 2-5x PRELIM entries per API call | [#41346](https://github.com/anthropics/claude-code/issues/41346) | All | 2.87x token inflation in local logs. Server impact unknown. **Unfixed** |
 
 ### Server-Side Issues
 
@@ -280,4 +294,4 @@ Each new model release or version update has been a trigger for the next escalat
 
 ---
 
-*Collected 2026-04-02, updated 2026-04-03 via GitHub API. See [README.md](README.md) for root cause analysis and workarounds.*
+*Collected 2026-04-02, updated 2026-04-03 (v2.1.91 analysis, Lydia Hallie response, Bugs 10-11 added). See [README.md](README.md) for root cause analysis and workarounds.*
