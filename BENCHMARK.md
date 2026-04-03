@@ -308,7 +308,7 @@ cc-relay source code audited: pure pass-through. No request/response body modifi
 | Parallel agent research/analysis | **Best** | **Good** (agents warm up quickly) | Avoid |
 | Maximum token efficiency | **Best** | **Close to optimal** | Avoid |
 
-**Bottom line (v2.1.90):** The gap with npm was limited to sub-agent cold starts (first 1-2 requests at 14-47%), recovering to 94-99% after 3-5 requests. Both consumed comparable quota (7% npm vs 5% standalone). **The real enemy was v2.1.89 and earlier**, where cache never recovered. As of v2.1.91, this gap is fully closed — see the [v2.1.91 addendum below](#v2191-addendum-april-3-2026). Update to v2.1.91 regardless of installation method.
+On v2.1.90, the gap with npm was limited to sub-agent cold starts (14-47%), recovering to 94-99% after 3-5 requests. Both consumed comparable quota (7% npm vs 5% standalone). v2.1.89 and earlier were the real problem — cache never recovered there. This gap was [fully closed in v2.1.91](#v2191-full-benchmark-april-3-2026).
 
 ### Disable Auto-Update First
 
