@@ -558,7 +558,7 @@ As of April 3, 2026: **180+ comments on 91 unique issues** (including v2.1.90-91
 - [CUStats](https://custats.info) — Real-time usage tracking and visualization
 - [context-stats](https://github.com/luongnv89/cc-context-stats) — Per-interaction cache metrics export and analysis (by [@luongnv89](https://github.com/luongnv89))
 - [BudMon](https://github.com/weilhalt/budmon) — Desktop dashboard for rate-limit header monitoring
-- [Resume cache fix patch](https://gist.github.com/simpolism/302621e661f462f3e78684d96bf307ba) — Fixes two remaining `--resume` cache misses on v2.1.91: skill_listing reshuffling + joinTextAtSeam newline accumulation. 99.7-99.9% cache hit on resumed turns (by [@simpolism](https://github.com/simpolism), [tested locally](https://github.com/anthropics/claude-code/issues/42338#issuecomment-4181820576))
+- [Resume cache fix patch](https://gist.github.com/simpolism/302621e661f462f3e78684d96bf307ba) — Fixes two remaining `--resume` cache misses on v2.1.91: skill_listing reshuffling + joinTextAtSeam newline accumulation. 99.7-99.9% cache hit on resumed turns ([tested locally](https://github.com/anthropics/claude-code/issues/42338#issuecomment-4181820576), by [@simpolism](https://github.com/simpolism)). Most useful for **harness setups** that call `claude -p --resume` on every turn (e.g., Discord bots) — in interactive sessions the impact is minimal since resumes are infrequent and v2.1.91 already handles the main regression
 
 ### Token Optimization Tools (complementary, not bug fixes)
 - [rtk](https://github.com/rtk-ai/rtk) — Tool output compression (trims CLI/test results post-execution, reduces input token volume)
