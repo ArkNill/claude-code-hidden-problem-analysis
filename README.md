@@ -330,7 +330,7 @@ Even with cache at 95-99%, drain persists. As of April 3, the [#38335 mega-threa
 
 **2. 1M context billing regression:** Max plans include 1M context free (announced March 13, confirmed March 20), but a late-March regression causes the server to incorrectly classify these requests as "extra usage." Debug logs show a 429 error at only ~23K tokens with `"Extra usage is required for long context requests"` on a Max plan with 1M context enabled ([#42616](https://github.com/anthropics/claude-code/issues/42616), request ID: `req_011CZf8TJf84hAUziB6LuRoc`). Related display bug: [#42569](https://github.com/anthropics/claude-code/issues/42569).
 
-**3. Org-level quota sharing:** Accounts on the same billing method share rate limit pools ([#41881](https://github.com/anthropics/claude-code/issues/41881)). Source code confirms `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`.
+**3. Org-level quota sharing:** Accounts under the same organization share rate limit pools. Source code analysis shows `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid` — meaning separate subscriptions on the same org can drain each other's quota.
 
 ---
 

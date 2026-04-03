@@ -252,7 +252,7 @@ These are compound — multiple bugs interact to produce the observed behavior.
 |---|-----------|----------|--------|
 | 1 | **Silent quota reduction** — weekly/5h limits reduced without notice | [#9094](https://github.com/anthropics/claude-code/issues/9094), [#28848](https://github.com/anthropics/claude-code/issues/28848) | 5-8x reduction in usable hours |
 | 2 | **Accounting mismatch** — meter shows 16-84% but "limit reached" | [#19673](https://github.com/anthropics/claude-code/issues/19673), [#29579](https://github.com/anthropics/claude-code/issues/29579) | Unpredictable cutoffs |
-| 3 | **Org-level quota sharing** — accounts with same billing share pool | [#41881](https://github.com/anthropics/claude-code/issues/41881) | Unexpected cross-account drain |
+| 3 | **Org-level quota sharing** — accounts under same org share pool (`organizationUuid` keying) | Source code analysis | Unexpected cross-account drain |
 | 4 | **Opus 4.6 auto-upgrade** — higher token consumption, no opt-out | [#23706](https://github.com/anthropics/claude-code/issues/23706) | Higher base cost per turn |
 | 5 | **Server-side accounting change** — old Docker versions drain fast without client update | [#37394](https://github.com/anthropics/claude-code/issues/37394) | Proves server-side cause independent of client bugs |
 | 6 | **1M context billing regression** — Max plan 1M requests classified as "extra usage" | [#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569) | Spurious 429 at 23K tokens, incorrect billing |
