@@ -627,6 +627,7 @@ This analysis builds on work by many community members who independently investi
 | [@simpolism](https://github.com/simpolism) | Identified v2.1.90 changelog correlation with `--resume` cache fix |
 | [@weilhalt](https://github.com/weilhalt) | Built [BudMon](https://github.com/weilhalt/budmon) for real-time rate-limit header monitoring |
 | [@pablofuenzalidadf](https://github.com/pablofuenzalidadf) | Reported old Docker versions (v2.1.74/86) draining — key server-side evidence ([#37394](https://github.com/anthropics/claude-code/issues/37394)) |
+| [@dancinlife](https://github.com/dancinlife) | Discovered `organizationUuid`-based quota pooling ([#41886](https://github.com/anthropics/claude-code/issues/41886)) and identified `claude login` `oauthAccount` cross-contamination bug causing silent rate limit sharing across accounts |
 | [@SC7639](https://github.com/SC7639) | Provided additional regression data confirming the mid-March timeline |
 | Reddit community | [Reverse engineering analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6) of cache sentinel mechanism |
 
