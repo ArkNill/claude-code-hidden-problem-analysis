@@ -143,7 +143,7 @@ Root causes identified with measured data.
 |------|-------|-------|----------|-----------|-------------|
 | 2026-03-15 | [**#34629**](https://github.com/anthropics/claude-code/issues/34629) | **Prompt cache regression since v2.1.69: cache_read never grows, ~20x cost increase** | 18 | 36 | **ROOT CAUSE #1 confirmed with data** |
 | 2026-03-22 | [#37394](https://github.com/anthropics/claude-code/issues/37394) | Claude Code Usage for Max Plan hitting limits extremely fast | **59** | 35 | March 22 escalation point |
-| 2026-03-24 | [**#38335**](https://github.com/anthropics/claude-code/issues/38335) | **Session limits exhausted abnormally fast since March 23** | **313** | **277** | **Third mega-thread** |
+| 2026-03-24 | [**#38335**](https://github.com/anthropics/claude-code/issues/38335) | **Session limits exhausted abnormally fast since March 23** | **313** | **258** | **Third mega-thread** |
 | 2026-03-24 | [#38357](https://github.com/anthropics/claude-code/issues/38357) | Max 20x: Usage meter climbing abnormally fast — 1-2% per simple message | 8 | 3 | Forensic analysis: cache 92.7% OK but meter still abnormal = server-side issue |
 | 2026-03-29 | [**#40524**](https://github.com/anthropics/claude-code/issues/40524) | **Conversation history invalidated on subsequent turns** | **59** | **197** | **ROOT CAUSE #2: full cache rebuild on every turn** |
 | 2026-03-31 | [#41249](https://github.com/anthropics/claude-code/issues/41249) | Excessive token consumption — usage depleting faster than expected | 9 | 16 | <1 hour to full depletion |
