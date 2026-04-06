@@ -72,6 +72,7 @@
 - [CUStats](https://custats.info) — Real-time usage tracking and visualization
 - [context-stats](https://github.com/luongnv89/cc-context-stats) — Per-interaction cache metrics export and analysis (by [@luongnv89](https://github.com/luongnv89))
 - [BudMon](https://github.com/weilhalt/budmon) — Desktop dashboard for rate-limit header monitoring
+- [claude-usage-dashboard](https://github.com/fgrosswig/claude-usagage-dashboard) — Standalone Node.js JSONL dashboard with forensic analysis, multi-host aggregation, and implicit budget estimation (by [@fgrosswig](https://github.com/fgrosswig))
 - [Resume cache fix patch](https://gist.github.com/simpolism/302621e661f462f3e78684d96bf307ba) — Fixes two remaining `--resume` cache misses on v2.1.91 (by [@simpolism](https://github.com/simpolism))
 
 ### Token Optimization Tools

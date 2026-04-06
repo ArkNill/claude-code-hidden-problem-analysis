@@ -107,7 +107,7 @@ What started as personal debugging quickly expanded. Dozens of users were report
 | Apr 1 | 70-minute 100% drain → v2.1.89 regression confirmed, proxy setup |
 | Apr 2 | Bugs 3-4 discovered (false rate limiter, silent microcompact). Anthropic's Lydia Hallie posts on X |
 | Apr 3 | Bug 5 discovered (200K budget cap). v2.1.91 benchmark: cache fixed, 5 other bugs persist. [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) |
-| Apr 4-5 | cc-relay captures 3,702 requests with rate limit headers. Sn3th sends defense playbook |
+| Apr 4-5 | cc-relay captures 3,702 requests with rate limit headers. Community analysis continues |
 | Apr 6 | Dual-window quota analysis published. Community cross-validation (fgrosswig 64x, Commandershadow9 34-143x). [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) |
 
 Full 14-month chronicle (Feb 2025 – Apr 2026): [TIMELINE.md](TIMELINE.md)
@@ -141,12 +141,14 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 |------|------|------|
 | **[README.md](README.md)** | This file — overview, latest updates, current status | Apr 6 |
 | **[RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot | Apr 6 |
+| **[JSONL-ANALYSIS.md](JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
 | **[BUGS.md](BUGS.md)** | Bug 1-5, 8 technical details + measured data | Apr 3 |
 | **[MICROCOMPACT.md](MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 3 |
 | **[BENCHMARK.md](BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
 | **[TEST-RESULTS-0403.md](TEST-RESULTS-0403.md)** | April 3 integrated test results — all bugs verified | Apr 3 |
 | **[TIMELINE.md](TIMELINE.md)** | 14-month chronicle of rate limit issues (Phase 1-9) | Apr 6 |
 | **[QUICKSTART.md](QUICKSTART.md)** | Setup guide + self-diagnosis | Apr 3 |
+| **[UPDATE-LOG.md](UPDATE-LOG.md)** | Daily investigation log — what was found, when, how | Apr 1-6 |
 | **[ISSUES.md](ISSUES.md)** | 91+ related issues + community tools + contributors | Apr 6 |
 
 ## Environment
