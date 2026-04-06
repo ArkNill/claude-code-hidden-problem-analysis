@@ -169,13 +169,25 @@ Root causes identified with measured data.
 | 04-02 | [#42338](https://github.com/anthropics/claude-code/issues/42338) | Session resume invalidates entire prompt cache | — |
 | 04-02 | [#42390](https://github.com/anthropics/claude-code/issues/42390) | Rate limit triggered despite 0% usage in /usage | 3 |
 | 04-02 | [#42409](https://github.com/anthropics/claude-code/issues/42409) | Excessive API usage consumption during active session | 4 |
-| 04-02 | [**#42542**](https://github.com/anthropics/claude-code/issues/42542) | **Silent context degradation — 3 microcompact mechanisms strip tool results** | 2 | **ROOT CAUSE #3: GrowthBook-controlled compaction invalidates cache** |
+| 04-02 | [**#42542**](https://github.com/anthropics/claude-code/issues/42542) | **Silent context degradation — 3 microcompact mechanisms strip tool results** | 2 | **ROOT CAUSE #3: GrowthBook-controlled compaction degrades context quality (cache 99%+ maintained)** |
 | 04-02 | [**#42569**](https://github.com/anthropics/claude-code/issues/42569) | **1M context incorrectly shown as extra billable usage on Max plan** | 1 | **Server-side billing regression** |
 | 04-02 | [#42583](https://github.com/anthropics/claude-code/issues/42583) | You've hit your limit — 1M actual vs 120-160K expected (v2.1.90) | 1 |
 | 04-02 | [#42590](https://github.com/anthropics/claude-code/issues/42590) | Context compaction too aggressive on 1M context window (Opus 4.6) | 1 |
 | 04-02 | [#42592](https://github.com/anthropics/claude-code/issues/42592) | Token consumption 100x faster after v2.1.88 — 21 min to 5-hour limit | 4 |
 | 04-02 | [#42609](https://github.com/anthropics/claude-code/issues/42609) | Reached limit session in under 5 minutes (resume-triggered) | 1 |
 | 04-02 | [**#42616**](https://github.com/anthropics/claude-code/issues/42616) | **Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M** | 1 | **Server-side: debug log proves API rejected valid request** |
+
+### Rate Limit Header Analysis (April 6)
+
+Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` response headers across 3,702 requests (April 4–6), revealing the server-side quota architecture:
+
+- **Dual sliding window**: 5-hour + 7-day independent counters. `representative-claim` = `five_hour` in 100% of requests — the 5h window is always the bottleneck.
+- **Per-1% cost**: 9K–16K visible output, 1.5M–2.1M cache_read per percentage point of 5h utilization (cache_read = 96–99% of visible cost).
+- **Thinking token blind spot**: `output_tokens` in API response excludes thinking tokens. Visible output alone explains <50% of observed utilization — the remainder is likely thinking tokens, cache-read weighting, or both.
+- **Community cross-validation**: @fgrosswig published [64x budget reduction forensics](https://github.com/anthropics/claude-code/issues/38335#issuecomment-4189537353) (dual-machine 18-day JSONL: Mar 26 3.2B tokens no limit → Apr 5 88M at 90%). @Commandershadow9 published [34–143x capacity reduction analysis](https://github.com/anthropics/claude-code/issues/41506#issuecomment-4189508296) confirming cache fix but documenting capacity drop independent of cache bug. Both independently identified thinking tokens as a likely factor.
+- **v2.1.89 separation**: Clean comparison framework established — golden period (Mar 23–27, cache 98–99%) vs v2.1.89 bug period (Mar 28–Apr 1, excluded as confounding variable) vs post-fix period (Apr 2+, cache 84–97%, capacity reduction visible).
+
+Full analysis: [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md)
 
 ### New Root Causes Discovered (April 2-3)
 
@@ -184,7 +196,7 @@ Two significant discoveries by community investigation:
 **Bug 3 — Client-side false rate limiter** ([#40584](https://github.com/anthropics/claude-code/issues/40584), discovered by [@rwp65](https://github.com/rwp65)):
 Local rate limiter generates synthetic "Rate limit reached" errors (`model: "<synthetic>"`, `input_tokens: 0`) without calling the API. Triggered by large transcripts + concurrent sub-agents. Cross-referenced by [@marlvinvu](https://github.com/marlvinvu) across [#40438](https://github.com/anthropics/claude-code/issues/40438), [#39938](https://github.com/anthropics/claude-code/issues/39938), [#38239](https://github.com/anthropics/claude-code/issues/38239). **Unfixed in v2.1.90.**
 
-**Bug 4 — Silent microcompact → cache invalidation** ([#42542](https://github.com/anthropics/claude-code/issues/42542), discovered by [@Sn3th](https://github.com/Sn3th)):
+**Bug 4 — Silent microcompact → context quality degradation** ([#42542](https://github.com/anthropics/claude-code/issues/42542), discovered by [@Sn3th](https://github.com/Sn3th)):
 Three compaction mechanisms (`microCompact.ts:422`, `microCompact.ts:305`, `sessionMemoryCompact.ts:57`) silently strip tool results on every API call, controlled by server-side GrowthBook A/B flags. Proxy testing (April 3) showed **cache ratio stays 99%+ in main sessions** during clearing — the stable substitution preserves the prompt prefix. The actual cost is **context quality degradation** (model loses access to earlier tool results). Also explains why old Docker versions started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed without client update. **Unfixed through v2.1.91, server-controlled.**
 
 **Bug 5 — Tool result budget enforcement** (discovered by [@Sn3th](https://github.com/Sn3th), confirmed by proxy April 3):
@@ -294,4 +306,4 @@ Each new model release or version update has been a trigger for the next escalat
 
 ---
 
-*Collected 2026-04-02, updated 2026-04-03 (v2.1.91 analysis, Lydia Hallie response, Bugs 10-11 added). See [README.md](README.md) for root cause analysis and workarounds.*
+*Collected 2026-04-02, updated 2026-04-06 (rate limit header analysis, community cross-references, v2.1.89 separation framework). See [README.md](README.md) for root cause analysis and [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) for quota architecture analysis.*

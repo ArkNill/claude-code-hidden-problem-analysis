@@ -291,7 +291,7 @@ The [v2.1.89-90 changelog](https://code.claude.com/docs/en/changelog) confirms m
 - Lydia Hallie (Product): *"We shipped some fixes on the Claude Code side that should help"* — [Post](https://x.com/lydiahallie/status/2039107775314428189)
 - Thariq Shihipar (Technical Staff): Confirmed prompt caching bugs being investigated — [Post](https://x.com/trq212/status/2027232172810416493)
 
-Note: Anthropic has not responded to any of the 82 GitHub issues (2+ months of silence). All communication has been via personal X accounts and the changelog.
+Note: Anthropic has not responded to any of the 91+ GitHub issues (2+ months of silence). All communication has been via personal X accounts and the changelog.
 
 ### Proxy Ruled Out
 
