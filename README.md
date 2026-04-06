@@ -8,7 +8,7 @@
 
 ## Latest Update (April 6)
 
-### Rate limit header analysis — [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md)
+### Rate limit header analysis — [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)
 
 Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers across **3,702 requests** (April 4-6), revealing the server-side quota architecture:
 
@@ -42,13 +42,13 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Five additional client-si
 
 | Bug | What It Does | Impact | Status (v2.1.91) | Details |
 |-----|-------------|--------|-------------------|---------|
-| **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [BUGS.md](BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
-| **B2** Resume | `--resume` replays full context uncached | 20x cost per resume | **Fixed** | [BUGS.md](BUGS.md#bug-2--resume-cache-breakage-v2169) |
-| **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [BUGS.md](BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
-| **B4** Microcompact | Tool results silently cleared mid-session | Context quality degrades | **Unfixed** | [BUGS.md](BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [MICROCOMPACT.md](MICROCOMPACT.md) |
-| **B5** Budget cap | 200K aggregate limit on tool results | Older results truncated to 1-41 chars | **Unfixed** | [BUGS.md](BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [MICROCOMPACT.md](MICROCOMPACT.md) |
-| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.87x local token inflation | **Unfixed** | [BUGS.md](BUGS.md#bug-8--jsonl-log-duplication-all-versions) |
-| **Server** | Quota architecture + thinking token accounting | Reduced effective capacity | **By design** | [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) |
+| **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
+| **B2** Resume | `--resume` replays full context uncached | 20x cost per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
+| **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
+| **B4** Microcompact | Tool results silently cleared mid-session | Context quality degrades | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
+| **B5** Budget cap | 200K aggregate limit on tool results | Older results truncated to 1-41 chars | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
+| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.87x local token inflation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions) |
+| **Server** | Quota architecture + thinking token accounting | Reduced effective capacity | **By design** | [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
 ### What You Can Do
 
@@ -58,7 +58,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Five additional client-si
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
 5. **Avoid `/dream` and `/insights`** — background API calls that drain silently
 
-See [QUICKSTART.md](QUICKSTART.md) for setup guide and self-diagnosis.
+See [09_QUICKSTART.md](09_QUICKSTART.md) for setup guide and self-diagnosis.
 
 ---
 
@@ -70,9 +70,9 @@ Even with cache at 95-99%, drain persists. At least four server-side issues cont
 
 **2. 1M context billing regression:** A late-March regression causes the server to incorrectly classify Max plan 1M context requests as "extra usage." Debug logs show a 429 error at only ~23K tokens ([#42616](https://github.com/anthropics/claude-code/issues/42616)).
 
-**3. Dual-window quota architecture (April 6):** 5h + 7d independent windows. Each 1% of 5h costs ~1.5M-2.1M visible tokens (96-99% cache_read). See [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md).
+**3. Dual-window quota architecture (April 6):** 5h + 7d independent windows. Each 1% of 5h costs ~1.5M-2.1M visible tokens (96-99% cache_read). See [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md).
 
-**3a. Thinking token blind spot (April 6):** Visible output is only 9K-16K per 1% — consistent with thinking tokens being counted against the quota but invisible to clients. Community reports by [@Commandershadow9](https://github.com/Commandershadow9) and [@fgrosswig](https://github.com/fgrosswig) independently reached the same conclusion through JSONL analysis. See [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md).
+**3a. Thinking token blind spot (April 6):** Visible output is only 9K-16K per 1% — consistent with thinking tokens being counted against the quota but invisible to clients. Community reports by [@Commandershadow9](https://github.com/Commandershadow9) and [@fgrosswig](https://github.com/fgrosswig) independently reached the same conclusion through JSONL analysis. See [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md).
 
 **4. Org-level quota sharing:** Accounts under the same organization share rate limit pools. `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`.
 
@@ -98,7 +98,7 @@ On April 1, 2026, my Max 20 plan ($200/mo) hit 100% usage in ~70 minutes during 
 
 Downgrading from v2.1.89 to v2.1.68 immediately recovered cache to **97.6%** — confirming the regression was version-specific. I set up a transparent monitoring proxy (cc-relay) to capture per-request data going forward.
 
-What started as personal debugging quickly expanded. Dozens of users were reporting the same symptoms across what became [91+ GitHub issues](ISSUES.md). Community members — [@Sn3th](https://github.com/Sn3th), [@rwp65](https://github.com/rwp65), [@fgrosswig](https://github.com/fgrosswig), [@Commandershadow9](https://github.com/Commandershadow9), and [12 others](ISSUES.md#contributors--acknowledgments) — independently found different pieces of the puzzle.
+What started as personal debugging quickly expanded. Dozens of users were reporting the same symptoms across what became [91+ GitHub issues](10_ISSUES.md). Community members — [@Sn3th](https://github.com/Sn3th), [@rwp65](https://github.com/rwp65), [@fgrosswig](https://github.com/fgrosswig), [@Commandershadow9](https://github.com/Commandershadow9), and [12 others](10_ISSUES.md#contributors--acknowledgments) — independently found different pieces of the puzzle.
 
 **The investigation timeline:**
 
@@ -106,11 +106,11 @@ What started as personal debugging quickly expanded. Dozens of users were report
 |------|--------------|
 | Apr 1 | 70-minute 100% drain → v2.1.89 regression confirmed, proxy setup |
 | Apr 2 | Bugs 3-4 discovered (false rate limiter, silent microcompact). Anthropic's Lydia Hallie posts on X |
-| Apr 3 | Bug 5 discovered (200K budget cap). v2.1.91 benchmark: cache fixed, 5 other bugs persist. [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) |
+| Apr 3 | Bug 5 discovered (200K budget cap). v2.1.91 benchmark: cache fixed, 5 other bugs persist. [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) |
 | Apr 4-5 | cc-relay captures 3,702 requests with rate limit headers. Community analysis continues |
-| Apr 6 | Dual-window quota analysis published. Community cross-validation (fgrosswig 64x, Commandershadow9 34-143x). [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) |
+| Apr 6 | Dual-window quota analysis published. Community cross-validation (fgrosswig 64x, Commandershadow9 34-143x). [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
-Full 14-month chronicle (Feb 2025 – Apr 2026): [TIMELINE.md](TIMELINE.md)
+Full 14-month chronicle (Feb 2025 – Apr 2026): [07_TIMELINE.md](07_TIMELINE.md)
 
 ### Anthropic's Position (April 2)
 
@@ -127,7 +127,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 - **"Peak-hour limits are tighter"** — Our April 6 proxy data shows the bottleneck is always the 5h window (`representative-claim` = `five_hour` in 100% of 3,702 requests), regardless of time of day. Weekend and off-peak data shows the same pattern.
 - **Thinking token accounting** — Extended thinking tokens don't appear in `output_tokens` from the API, yet visible output alone explains less than half the observed utilization cost. If thinking tokens are counted against quota at output-token rate, this is a significant invisible cost that users have no way to monitor or control.
 
-**GitHub response:** Zero across 91+ rate-limit issues (2+ months of silence). All official communication has been via personal X posts and the changelog. See [ISSUES.md](ISSUES.md#anthropic-official-response) for full statement history.
+**GitHub response:** Zero across 91+ rate-limit issues (2+ months of silence). All official communication has been via personal X posts and the changelog. See [10_ISSUES.md](10_ISSUES.md#anthropic-official-response) for full statement history.
 
 ### Cache TTL (not a bug)
 
@@ -140,16 +140,16 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 | File | What | Date |
 |------|------|------|
 | **[README.md](README.md)** | This file — overview, latest updates, current status | Apr 6 |
-| **[RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot | Apr 6 |
-| **[JSONL-ANALYSIS.md](JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
-| **[BUGS.md](BUGS.md)** | Bug 1-5, 8 technical details + measured data | Apr 3 |
-| **[MICROCOMPACT.md](MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 3 |
-| **[BENCHMARK.md](BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
-| **[TEST-RESULTS-0403.md](TEST-RESULTS-0403.md)** | April 3 integrated test results — all bugs verified | Apr 3 |
-| **[TIMELINE.md](TIMELINE.md)** | 14-month chronicle of rate limit issues (Phase 1-9) | Apr 6 |
-| **[QUICKSTART.md](QUICKSTART.md)** | Setup guide + self-diagnosis | Apr 3 |
-| **[UPDATE-LOG.md](UPDATE-LOG.md)** | Daily investigation log — what was found, when, how | Apr 1-6 |
-| **[ISSUES.md](ISSUES.md)** | 91+ related issues + community tools + contributors | Apr 6 |
+| **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot | Apr 6 |
+| **[03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
+| **[01_BUGS.md](01_BUGS.md)** | Bug 1-5, 8 technical details + measured data | Apr 3 |
+| **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 3 |
+| **[04_BENCHMARK.md](04_BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
+| **[06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md)** | April 3 integrated test results — all bugs verified | Apr 3 |
+| **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle of rate limit issues (Phase 1-9) | Apr 6 |
+| **[09_QUICKSTART.md](09_QUICKSTART.md)** | Setup guide + self-diagnosis | Apr 3 |
+| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log — what was found, when, how | Apr 1-6 |
+| **[10_ISSUES.md](10_ISSUES.md)** | 91+ related issues + community tools + contributors | Apr 6 |
 
 ## Environment
 
@@ -163,7 +163,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 ## Contributors
 
-This analysis builds on work by many community members. Full details in [ISSUES.md](ISSUES.md#contributors--acknowledgments).
+This analysis builds on work by many community members. Full details in [10_ISSUES.md](10_ISSUES.md#contributors--acknowledgments).
 
 | Who | Key Contribution |
 |-----|-----------------|

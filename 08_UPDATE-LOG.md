@@ -61,7 +61,7 @@
 
 **Published:**
 - Repository created: [claude-code-cache-analysis](https://github.com/ArkNill/claude-code-cache-analysis) (now renamed)
-- [README.md](README.md), [BENCHMARK.md](BENCHMARK.md), [MICROCOMPACT.md](MICROCOMPACT.md), [TIMELINE.md](TIMELINE.md), [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md)
+- [README.md](README.md), [04_BENCHMARK.md](04_BENCHMARK.md), [05_MICROCOMPACT.md](05_MICROCOMPACT.md), [07_TIMELINE.md](07_TIMELINE.md), [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md)
 - Comments on 91+ GitHub issues
 
 ---
@@ -160,4 +160,4 @@
 
 ---
 
-*This log is updated with each significant investigation activity. See [TIMELINE.md](TIMELINE.md) for the broader 14-month history of the rate limit crisis.*
+*This log is updated with each significant investigation activity. See [07_TIMELINE.md](07_TIMELINE.md) for the broader 14-month history of the rate limit crisis.*

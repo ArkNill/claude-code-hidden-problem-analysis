@@ -1,6 +1,6 @@
 # Quick Start — Setup & Self-Diagnosis
 
-> Practical steps to minimize token drain. For the technical analysis behind these recommendations, see [BUGS.md](BUGS.md).
+> Practical steps to minimize token drain. For the technical analysis behind these recommendations, see [01_BUGS.md](01_BUGS.md).
 
 ---
 
@@ -84,4 +84,4 @@ ANTHROPIC_BASE_URL=http://localhost:8080 claude
 
 ---
 
-*See [BUGS.md](BUGS.md) for technical root causes, [BENCHMARK.md](BENCHMARK.md) for npm vs standalone comparison.*
+*See [01_BUGS.md](01_BUGS.md) for technical root causes, [04_BENCHMARK.md](04_BENCHMARK.md) for npm vs standalone comparison.*

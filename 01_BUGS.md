@@ -89,7 +89,7 @@ Our proxy-based testing revealed a **correction** to the initial hypothesis: mic
 
 Cache ratio stays high because the same `[Old tool result content cleared]` marker is substituted consistently, preserving the prompt prefix between calls. But the model can no longer see the original file contents or command outputs — it only sees the placeholder. In practice, this means the agent can't accurately quote earlier tool results and may retry approaches it already tried. [@Sn3th](https://github.com/Sn3th) reports effective context dropping to ~40-80K tokens in sessions with 50+ tool uses despite the 1M window — a 95-96% reduction in usable context.
 
-- **Update (April 3):** GrowthBook flag survey across 4 machines / 4 accounts shows **all gates disabled** — yet context is still being stripped (a compaction code path independent of the three documented GrowthBook-gated mechanisms). See [MICROCOMPACT.md](MICROCOMPACT.md) for full analysis.
+- **Update (April 3):** GrowthBook flag survey across 4 machines / 4 accounts shows **all gates disabled** — yet context is still being stripped (a compaction code path independent of the three documented GrowthBook-gated mechanisms). See [05_MICROCOMPACT.md](05_MICROCOMPACT.md) for full analysis.
 - **Discovery:** [@Sn3th](https://github.com/Sn3th) in [#42542](https://github.com/anthropics/claude-code/issues/42542) (April 2, 2026)
 - **Status:** **Unfixed** in v2.1.91. 14 events detected in v2.1.91 test sessions, identical pattern.
 
@@ -165,7 +165,7 @@ After downgrading to v2.1.68 (npm): `892388f6` recovered to **97.6% average** (1
 | Overall cache read | **86.4%** | **86.2%** |
 | Stable session read | **95-99.8%** | **95-99.7%** |
 
-Full per-request data and warming curves: **[BENCHMARK.md](BENCHMARK.md)**
+Full per-request data and warming curves: **[04_BENCHMARK.md](04_BENCHMARK.md)**
 
 ### Version Comparison Summary
 
@@ -179,8 +179,8 @@ Full per-request data and warming curves: **[BENCHMARK.md](BENCHMARK.md)**
 | Overall | ~20% | 86.4% | 86.2% | **88.4%** | **84.1%** |
 | Verdict | **Avoid** | Good | Good | **Best** | **Good** |
 
-v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84.7% in single-prompt test), but recovery is dramatically faster than v2.1.90 (1 request vs 3-5). Both installations converge to 94-99% once warmed. See **[BENCHMARK.md](BENCHMARK.md)** for per-request data.
+v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84.7% in single-prompt test), but recovery is dramatically faster than v2.1.90 (1 request vs 3-5). Both installations converge to 94-99% once warmed. See **[04_BENCHMARK.md](04_BENCHMARK.md)** for per-request data.
 
 ---
 
-*See also: [MICROCOMPACT.md](MICROCOMPACT.md) for Bug 4-5 deep dive, [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) for April 3 integrated test results, [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) for server-side quota analysis.*
+*See also: [05_MICROCOMPACT.md](05_MICROCOMPACT.md) for Bug 4-5 deep dive, [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) for April 3 integrated test results, [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) for server-side quota analysis.*

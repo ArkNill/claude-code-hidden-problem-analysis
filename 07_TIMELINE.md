@@ -187,7 +187,7 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` response h
 - **Community cross-validation**: @fgrosswig published [64x budget reduction forensics](https://github.com/anthropics/claude-code/issues/38335#issuecomment-4189537353) (dual-machine 18-day JSONL: Mar 26 3.2B tokens no limit → Apr 5 88M at 90%). @Commandershadow9 published [34–143x capacity reduction analysis](https://github.com/anthropics/claude-code/issues/41506#issuecomment-4189508296) confirming cache fix but documenting capacity drop independent of cache bug. Both independently identified thinking tokens as a likely factor.
 - **v2.1.89 separation**: Clean comparison framework established — golden period (Mar 23–27, cache 98–99%) vs v2.1.89 bug period (Mar 28–Apr 1, excluded as confounding variable) vs post-fix period (Apr 2+, cache 84–97%, capacity reduction visible).
 
-Full analysis: [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md)
+Full analysis: [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)
 
 ### New Root Causes Discovered (April 2-3)
 
@@ -234,7 +234,7 @@ Anthropic shipped cache-related fixes in v2.1.89-90 without any GitHub issue res
 - [Lydia Hallie](https://x.com/lydiahallie/status/2039107775314428189) (earlier): *"We shipped some fixes on the Claude Code side that should help"*
 - [Thariq Shihipar](https://x.com/trq212/status/2027232172810416493): Confirmed prompt caching bugs being investigated (earlier incident)
 
-**Independent verification:** Controlled benchmarks confirm v2.1.90-91 achieve 82-86% overall cache read and 95-99% in stable sessions. v2.1.91 closes the npm/standalone gap (84.7% identical cold start). See [BENCHMARK.md](BENCHMARK.md).
+**Independent verification:** Controlled benchmarks confirm v2.1.90-91 achieve 82-86% overall cache read and 95-99% in stable sessions. v2.1.91 closes the npm/standalone gap (84.7% identical cold start). See [04_BENCHMARK.md](04_BENCHMARK.md).
 
 ---
 
@@ -306,4 +306,4 @@ Each new model release or version update has been a trigger for the next escalat
 
 ---
 
-*Collected 2026-04-02, updated 2026-04-06 (rate limit header analysis, community cross-references, v2.1.89 separation framework). See [README.md](README.md) for root cause analysis and [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) for quota architecture analysis.*
+*Collected 2026-04-02, updated 2026-04-06 (rate limit header analysis, community cross-references, v2.1.89 separation framework). See [README.md](README.md) for root cause analysis and [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) for quota architecture analysis.*

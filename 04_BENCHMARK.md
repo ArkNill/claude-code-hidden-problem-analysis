@@ -454,7 +454,7 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 
 4. **Overall efficiency**: Both installations achieve comparable overall cache (88.4% vs 84.1%). The 4pp difference is primarily from the standalone cold start — once warmed, they converge.
 
-**Recommendation update:** On v2.1.91, **either installation is fine.** npm retains a theoretical advantage (no Sentinel code path) but the practical difference is now negligible. See [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) for full per-request data.
+**Recommendation update:** On v2.1.91, **either installation is fine.** npm retains a theoretical advantage (no Sentinel code path) but the practical difference is now negligible. See [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) for full per-request data.
 
 ---
 
@@ -465,8 +465,8 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 - [Lydia Hallie — rate limit statement (thread end)](https://x.com/lydiahallie/status/2039800718371307603)
 - [Thariq Shihipar — prompt caching bug acknowledgment](https://x.com/trq212/status/2027232172810416493)
 - [README.md](README.md) — overview, recommendations, 91-issue list
-- [TEST-RESULTS-0403.md](TEST-RESULTS-0403.md) — April 3 integrated test results
-- [TIMELINE.md](TIMELINE.md) — 14-month chronicle of rate limit issues
+- [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) — April 3 integrated test results
+- [07_TIMELINE.md](07_TIMELINE.md) — 14-month chronicle of rate limit issues
 
 ---
 

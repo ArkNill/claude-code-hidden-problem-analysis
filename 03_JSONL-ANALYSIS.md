@@ -2,7 +2,7 @@
 
 > **Date:** April 6, 2026 — 110 main sessions + 279 subagent sessions (April 1-6), v2.1.91, Max 20x ($200/mo)
 >
-> **Relationship to other documents:** [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md) analyzes server-side rate limit headers from the proxy. This document analyzes client-side JSONL session logs (`~/.claude/projects/**/*.jsonl`). Section 5 cross-correlates both.
+> **Relationship to other documents:** [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) analyzes server-side rate limit headers from the proxy. This document analyzes client-side JSONL session logs (`~/.claude/projects/**/*.jsonl`). Section 5 cross-correlates both.
 
 ---
 
@@ -226,7 +226,7 @@ Analysis of the longest session (03480ffe, 990 entries, 336M visible tokens):
 
 **Anomaly at turn 281:** cache_read dropped from ~222K to 8,237 with cache_create spiking to 237,490. This is a mid-session cache rebuild — possibly triggered by microcompact (B4) or a server-side cache eviction. Recovery to pre-anomaly levels took ~20 turns.
 
-**Implication for utilization:** If each 1% of 5h utilization costs ~1.5M-2.1M visible tokens (from [RATELIMIT-HEADERS.md](RATELIMIT-HEADERS.md)), then:
+**Implication for utilization:** If each 1% of 5h utilization costs ~1.5M-2.1M visible tokens (from [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)), then:
 - Early session (turn 10, ~34K cache/turn): ~44-62 turns per 1%
 - Mid session (turn 500, ~347K cache/turn): ~4-6 turns per 1%
 - Late session (turn 990, ~595K cache/turn): ~2.5-3.5 turns per 1%
