@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/04_BENCHMARK.md)**
+
 # Cache Efficiency Benchmark — npm vs Standalone
 
 > **Current answer (v2.1.91):** They're the same. Both hit 84.7% cold start and 97-99% stable. The Sentinel gap from v2.1.90 is gone. Use whichever you prefer.

@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/10_ISSUES.md)**
+
 # Related Issues, Community Tools & Contributors
 
 > As of April 6, 2026: **180+ comments on 91+ unique issues**. Anthropic official response on GitHub: **zero**.

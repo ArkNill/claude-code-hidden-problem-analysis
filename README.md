@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/README.md)**
+
 # Claude Code Hidden Problem Analysis
 
 > **TL;DR:** Claude Code has **7 confirmed bugs across 5 layers** that drain usage faster than expected. Cache bugs (1-2) are fixed in v2.1.91. Five others remain unfixed. Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot** — visible output explains less than half the observed utilization. All findings are backed by proxy-measured data.

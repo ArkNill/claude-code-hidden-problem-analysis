@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/02_RATELIMIT-HEADERS.md)**
+
 # Rate Limit Header Analysis — Dual-Window Quota Architecture
 
 > **Date:** April 6, 2026 — 48h proxy observation (April 4–6), v2.1.91, Max 20x ($200/mo)

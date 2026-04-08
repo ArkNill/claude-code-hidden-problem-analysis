@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/09_QUICKSTART.md)**
+
 # Quick Start — Setup & Self-Diagnosis
 
 > Practical steps to minimize token drain. For the technical analysis behind these recommendations, see [01_BUGS.md](01_BUGS.md).

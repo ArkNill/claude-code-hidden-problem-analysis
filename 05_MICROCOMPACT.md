@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/05_MICROCOMPACT.md)**
+
 # Silent Context Mutation — Bugs 4 & 5
 
 Two separate mechanisms silently modify your conversation before it reaches the API. Neither is controllable via environment variables, and both remain active on v2.1.91.

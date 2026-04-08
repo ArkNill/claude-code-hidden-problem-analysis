@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/03_JSONL-ANALYSIS.md)**
+
 # JSONL Session Log Analysis — First-Party Data
 
 > **Date:** April 6, 2026 — 110 main sessions + 279 subagent sessions (April 1-6), v2.1.91, Max 20x ($200/mo)

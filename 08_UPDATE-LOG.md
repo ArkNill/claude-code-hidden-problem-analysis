@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/08_UPDATE-LOG.md)**
+
 # Investigation Log — Daily Progress
 
 > Date-by-date record of what was investigated, discovered, and published. Each entry documents the day's focus, methodology, and findings.

@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/07_TIMELINE.md)**
+
 # Claude Code Rate Limit Crisis — Full Timeline
 
 > 14-month chronicle of rate limit / token consumption issues in Claude Code.

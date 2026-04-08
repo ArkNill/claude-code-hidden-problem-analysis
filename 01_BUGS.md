@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/01_BUGS.md)**
+
 # Bug Details — Technical Root Cause Analysis
 
 > Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5 and 8 remain **unfixed** as of v2.1.91.

@@ -1,3 +1,5 @@
+> **🇰🇷 [한국어 버전](ko/06_TEST-RESULTS-0403.md)**
+
 # Test Results — April 3, 2026
 
 > Consolidated test results from the integrated testing session.
