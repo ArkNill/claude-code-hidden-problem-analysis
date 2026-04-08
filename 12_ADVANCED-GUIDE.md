@@ -516,15 +516,28 @@ The clearest signal that a session is past its useful life: Claude starts sugges
 
 When you see these signs, start a fresh session. Do not try to "remind" Claude by re-explaining — that just wastes tokens in a degraded context. A clean restart with a focused PLAN file gets better results in fewer turns.
 
-### Compaction control
+### Why /compact is not recommended
 
-| Method | What it does | When to use |
-|--------|-------------|-------------|
-| `/compact` | Summarizes conversation history | Before a topic shift within a session |
-| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` | Sets autocompact threshold | Delay compaction if you need context |
-| `DISABLE_AUTO_COMPACT=true` | Disables autocompact | When you want full manual control |
+`/compact` performs lossy compression — it drops specific variable names, exact error messages, line numbers, and decision rationale. The resulting summary gives Claude a vague outline of "what was discussed" but lacks the precision needed to continue work accurately. In practice, post-compact sessions produce more hallucinations and redundant work than fresh sessions that read well-maintained documents.
 
-Note: None of these control microcompact (Bug 4) or budget enforcement (Bug 5). Those operate on a separate code path.
+**The better pattern: document-based session handoff.**
+
+Instead of compacting, update your working documents at the end of each session while the full conversation is still available for cross-validation:
+
+1. **Before closing:** Ask Claude to update PLAN files, error logs, or status documents based on the current session's work. Cross-check the updates against the actual conversation — Claude can verify its own document updates while it still has access to the full context.
+2. **Start the next session fresh.** The new session reads the updated documents (step 1 of the session startup ritual) and has clean, verified context.
+
+This pattern works because you control what is preserved — not an automated summarizer. Each session's learnings are captured in durable, human-verified files rather than trapped in a lossy AI summary. Over months of multi-project operation, this approach consistently produces better session continuity than any combination of `/compact` and `--resume`.
+
+### Compaction environment variables
+
+| Variable | What it does | Practical note |
+|----------|-------------|----------------|
+| `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=70` | Sets autocompact threshold | Delays compaction, buys more time before context loss |
+| `DISABLE_AUTO_COMPACT=true` | Disables autocompact | Only affects the main autocompact — not microcompact |
+| `DISABLE_COMPACT=true` | Disables all compaction | Risky: disables manual `/compact` too |
+
+**Important:** None of these control microcompact (Bug 4) or budget enforcement (Bug 5). Those operate on a separate code path controlled by server-side GrowthBook flags.
 
 ---
 

@@ -77,11 +77,25 @@ Both `--resume` and `--continue` replay the entire conversation history as billa
 
 When a conversation gets long, Claude Code compresses older context to stay within limits. There are two types:
 
-**Manual compaction** (`/compact`): You trigger this yourself. You can provide a custom summary focus — for example, `/compact focus on the database migration we discussed`. Useful when you want to keep working in the same session but shed irrelevant context.
+**Manual compaction** (`/compact`): You trigger this yourself. You can provide a custom summary focus — for example, `/compact focus on the database migration we discussed`.
 
 **Automatic compaction:** Three separate mechanisms run silently on every API call, replacing old tool outputs with placeholder text like `[Old tool result content cleared]`. These run regardless of any environment variable settings — even `DISABLE_AUTO_COMPACT=true` does not stop all of them (see [05_MICROCOMPACT.md](05_MICROCOMPACT.md) for technical details).
 
 **After any compaction:** Claude knows WHAT it discussed (from the summary) but not the exact code, exact error messages, or exact line numbers. If you ask "what was the error on line 42?" after compaction, it will either hallucinate a plausible-sounding answer or admit it does not know — and the hallucination case is more dangerous because it looks confident. If you need Claude to reference specific earlier content, you will need to re-read those files.
+
+### Why /compact Is Not Recommended
+
+In practice, `/compact` loses far more detail than you expect. The compression is lossy — specific variable names, exact error messages, line numbers, and the reasoning behind decisions are routinely dropped. After compaction, Claude retains a vague sense of "what was discussed" but loses the precision needed to continue work accurately. This leads to subtle bugs: Claude confidently references code that no longer matches reality, or suggests approaches that were already ruled out in the pre-compaction conversation.
+
+**The better alternative: document-based session handoff.** Instead of compressing a conversation into an unreliable summary, explicitly update your working documents (PLAN files, CLAUDE.md, error logs) at the end of each session — while you can still verify the content against the full conversation context. Then start a fresh session that reads those documents.
+
+This "document cross-validation" pattern works because:
+- **You control what's preserved.** You decide which details matter, not an automated summarizer.
+- **Updates are verified.** You can ask Claude to cross-check the document updates against the actual conversation before closing the session.
+- **New sessions start clean.** The fresh session reads authoritative, human-verified documents rather than a lossy AI summary.
+- **Knowledge compounds across sessions.** Each session's learnings are captured in durable files, not trapped in a conversation that will eventually be compacted or lost.
+
+In a workflow managing multiple projects over months, this pattern consistently outperforms `/compact`. Sessions that start by reading updated documents are more focused and accurate than sessions that rely on compacted conversation history — because the documents contain exactly what you chose to preserve, with nothing silently dropped.
 
 ---
 
