@@ -2,7 +2,7 @@
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **7 confirmed bugs across 5 layers** that drain usage faster than expected. Cache bugs (1-2) are fixed in v2.1.91. Five others remain unfixed. Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot** — visible output explains less than half the observed utilization. All findings are backed by proxy-measured data.
+> **TL;DR:** Claude Code has **6 confirmed client-side bugs across 4 layers** that drain usage faster than expected. Cache bugs (B1-B2) are fixed in v2.1.91. Four remain unfixed (B3, B4, B5, B8). Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot** — visible output explains less than half the observed utilization. All findings are backed by proxy-measured data.
 >
 > **Last updated:** April 6, 2026 — README restructured, rate limit header analysis added
 
@@ -25,7 +25,7 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 |--------|-------|------|
 | Output per 1% | 9K-16K | Visible output only (thinking excluded) |
 | Cache Read per 1% | 1.5M-2.1M | 96-99% of visible token volume |
-| Total Visible per 1% | 1.6M-2.1M | Output + Cache Read + Input |
+| Total Visible per 1% | 1.5M-2.1M | Output + Cache Read + Input |
 | 7d accumulation ratio | 0.12-0.17 | 7d_delta relative to 5h_peak |
 
 **Thinking token blind spot:** Extended thinking tokens are **not included** in the `output_tokens` field from the API. At 9K-16K visible output per 1%, a full 5h window (100%) = only 0.9M-1.6M visible output tokens — low for several hours of Opus work. The gap is consistent with thinking tokens being counted against the quota, but the exact mechanism can't be confirmed from the client side. Thinking-disabled isolation test planned for the week of April 6.
@@ -40,12 +40,12 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ## Current Status (April 6, 2026)
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Five additional client-side bugs and server-side quota changes remain active:
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Four additional client-side bugs and server-side quota changes remain active:
 
 | Bug | What It Does | Impact | Status (v2.1.91) | Details |
 |-----|-------------|--------|-------------------|---------|
 | **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
-| **B2** Resume | `--resume` replays full context uncached | 20x cost per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
+| **B2** Resume | `--resume` replays full context uncached | Full cache miss per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
 | **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
 | **B4** Microcompact | Tool results silently cleared mid-session | Context quality degrades | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
 | **B5** Budget cap | 200K aggregate limit on tool results | Older results truncated to 1-41 chars | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
@@ -76,7 +76,7 @@ Even with cache at 95-99%, drain persists. At least four server-side issues cont
 
 **3a. Thinking token blind spot (April 6):** Visible output is only 9K-16K per 1% — consistent with thinking tokens being counted against the quota but invisible to clients. Community reports by [@Commandershadow9](https://github.com/Commandershadow9) and [@fgrosswig](https://github.com/fgrosswig) independently reached the same conclusion through JSONL analysis. See [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md).
 
-**4. Org-level quota sharing:** Accounts under the same organization share rate limit pools. `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`.
+**4. Org-level quota sharing:** Accounts under the same organization share rate limit pools. `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`. Originally discovered by [@dancinlife](https://github.com/dancinlife) through client-side analysis of the obfuscated JavaScript bundle.
 
 ---
 
@@ -109,7 +109,7 @@ What started as personal debugging quickly expanded. Dozens of users were report
 | Apr 1 | 70-minute 100% drain → v2.1.89 regression confirmed, proxy setup |
 | Apr 2 | Bugs 3-4 discovered (false rate limiter, silent microcompact). Anthropic's Lydia Hallie posts on X |
 | Apr 3 | Bug 5 discovered (200K budget cap). v2.1.91 benchmark: cache fixed, 5 other bugs persist. [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) |
-| Apr 4-5 | cc-relay captures 3,702 requests with rate limit headers. Community analysis continues |
+| Apr 4-6 | cc-relay captures 3,702 requests with rate limit headers. Community analysis continues |
 | Apr 6 | Dual-window quota analysis published. Community cross-validation (fgrosswig 64x, Commandershadow9 34-143x). [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
 Full 14-month chronicle (Feb 2025 – Apr 2026): [07_TIMELINE.md](07_TIMELINE.md)

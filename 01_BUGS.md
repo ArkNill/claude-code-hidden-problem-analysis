@@ -28,7 +28,7 @@ The standalone binary's embedded Bun fork contains a `cch=00000` sentinel replac
 
 **GitHub Issue:** [anthropics/claude-code#34629](https://github.com/anthropics/claude-code/issues/34629)
 
-`deferred_tools_delta` (introduced in v2.1.69) causes the first message's structure on `--resume` to not match the server's cached version — resulting in a complete cache miss. On a 500K token conversation, a single resume costs ~$0.15 in quota.
+`deferred_tools_delta` (introduced in v2.1.69) causes the first message's structure on `--resume` to not match the server's cached version — resulting in a complete cache miss. On a 500K token conversation, a single resume forces a full-price input pass over the entire context — the equivalent of replaying the whole conversation from scratch.
 
 **Official fix in v2.1.90 ([changelog](https://code.claude.com/docs/en/changelog)):**
 > *"Fixed --resume causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)"*
@@ -120,6 +120,10 @@ tengu_summarize_tool_results: true    (system prompt tells model to expect clear
 **v2.1.91:** Added `_meta["anthropic/maxResultSizeChars"]` (up to 500K) — but this only applies to **MCP tool results**. Built-in tools (Read, Bash, Grep, Glob, Edit) are **not affected** by this override. The 200K aggregate cap remains for normal usage.
 
 **No env var override exists.** `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, and all other known environment variables do not touch this code path.
+
+---
+
+> **Note on numbering:** Bugs 6 and 7 were identified during the investigation (compaction infinite loop and OAuth retry storm respectively) but are tracked separately in [07_TIMELINE.md](07_TIMELINE.md) as they relate to older, less reproducible issues. This document focuses on the actively measurable bugs.
 
 ---
 

@@ -12,7 +12,7 @@
 | Metric | Value |
 |--------|-------|
 | **Duration** | 14 months (2025-02 ~ 2026-04-03, ongoing) |
-| **Major escalation cycles** | 4 |
+| **Major escalation cycles** | Multiple across 9 phases (notably Phases 4, 6, 8, and 9) |
 | **Largest issue** | #16157 — 1,422 comments, 647 thumbs_up |
 | **Root causes identified** | 11 client-side + 6 server-side (compound) |
 | **Anthropic official response** | X/Twitter only (Lydia Hallie, April 2-3). Zero GitHub responses across 91+ issues |
@@ -243,6 +243,8 @@ Anthropic shipped cache-related fixes in v2.1.89-90 without any GitHub issue res
 ## Identified Root Causes
 
 These are compound — multiple bugs interact to produce the observed behavior.
+
+Note: The numbering below (1-11) is a chronological discovery order for this timeline. For the actively tracked bugs, the mapping to the B-series identifiers used in [01_BUGS.md](01_BUGS.md) is: #1->B1, #2->B2, #8->B3, #9->B4, #10->B5, #11->B8. Items #3-7 were identified during the investigation but are tracked separately as they relate to older or less reproducible issues.
 
 ### Client-Side Bugs
 

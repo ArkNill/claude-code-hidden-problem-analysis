@@ -127,7 +127,7 @@ v2.1.91 adds transcript chain break fix.
 
 ---
 
-### Cache TTL (Layer 0, from Luong NGUYEN analysis)
+### Cache TTL (Layer 0, from [@luongnv89](https://github.com/luongnv89)'s [cache TTL analysis](https://github.com/luongnv89/cc-context-stats/blob/main/context-stats-cache-misses.md))
 
 **External finding:** 13-hour idle → 350K token cache rebuild = 9% session budget.
 **Our data:** 5-26 min idle → **96%+ cache maintained**. TTL expiration requires much longer gaps.
@@ -271,7 +271,7 @@ Key observation: even at 800KB+ body with active microcompact clearing, cache re
 - `autocompact thrash loop detection` — actually in v2.1.89
 
 ### v2.1.89 (Apr 1)
-- `autocompact thrash loop` 3-retry stop — **B7 partial fix**
+- `autocompact thrash loop` 3-retry stop — **B7 partial fix** (autocompact thrash loop — see [07_TIMELINE.md](07_TIMELINE.md))
 - `tool schema bytes changing mid-session` — **B1 partial fix**
 - `nested CLAUDE.md re-injection` — context bloat fix
 - `StructuredOutput schema cache ~50% failure` — separate cache bug

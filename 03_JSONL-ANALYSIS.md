@@ -4,7 +4,7 @@
 
 > **Date:** April 6, 2026 — 110 main sessions + 279 subagent sessions (April 1-6), v2.1.91, Max 20x ($200/mo)
 >
-> **Relationship to other documents:** [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) analyzes server-side rate limit headers from the proxy. This document analyzes client-side JSONL session logs (`~/.claude/projects/**/*.jsonl`). Section 5 cross-correlates both.
+> **Relationship to other documents:** [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) analyzes server-side rate limit headers from the proxy. This document analyzes client-side JSONL session logs (`~/.claude/projects/**/*.jsonl`). Section 6 cross-correlates both.
 
 ---
 
@@ -173,8 +173,10 @@ This is relevant to community analyses (e.g., @fgrosswig's comparison of March 3
 | Cache Read | 1,607,617,725 | 335,964,567 | **17.3%** |
 | Cache Create | 50,302,333 | 82,034,105 | **62.0%** |
 | Input | 564,967 | 3,477,557 | — |
-| Cache Read % | 96.9% | 79.7% | — |
+| Cache Read % | 96.9% | 79.7%* | — |
 | Avg cache_read/entry | **134,158** | **33,009** | 4.1x |
+
+*\*79.7% is a per-entry weighted average (total subagent cache_read / total subagent visible tokens), not a simple mean of per-session ratios. Sessions with more entries contribute proportionally more to this figure.*
 
 ### Subagent cold start cost
 
@@ -288,7 +290,7 @@ When comparing token totals across different time periods, **always normalize by
 | Cache growth per turn? | +575 tokens/turn (linear) | — | ✓ Measured |
 | Cache_read per minute? | median 153K/min | — | ✓ Measured |
 | What does 1% utilization cost? | — | 1.5M-2.1M visible | ✓ Measured |
-| Are PRELIM entries inflating counts? | Yes (0.82x P/F ratio) | Yes (JSONL is 1.93x of proxy) | **✓ Confirmed from both sides** |
+| Are PRELIM entries inflating counts? | Yes (0.81x P/F ratio) | Yes (JSONL is 1.93x of proxy) | **✓ Confirmed from both sides** |
 | PRELIM cache vs FINAL cache? | 0.56-0.97x (not 1:1) | — | ✓ Measured |
 | Are synthetic rate limits real? | 24 events in 6 days | — | ✓ Measured |
 | Subagent cold start cost? | median 13,358 cache_create | — | ✓ Measured |

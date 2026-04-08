@@ -90,7 +90,7 @@ Early attempts at using MEMORY.md put everything in one file — project status,
 
 Planning documents — current approach, task breakdowns, error logs, what was tried and failed — should never go in CLAUDE.md. They change every session and would invalidate the cache prefix on every update. Instead, keep them in a PLAN.txt file that Claude reads on demand.
 
-One key rule: never commit PLAN.txt or CLAUDE.md to git. They are local working documents, not source code. PLAN.txt contains transient session state; CLAUDE.md contains instructions tuned to your local workflow. Both would be noise in the repository history and could leak information about your development process.
+Don't commit PLAN files to git — they're session-specific working documents, not source code. CLAUDE.md is a judgment call: commit it if the team needs shared instructions, keep it local if it contains personal workflow preferences.
 
 ### Anti-patterns
 
@@ -379,7 +379,7 @@ Extended thinking tokens are **not** included in `output_tokens` from the API re
 - You see 15K output tokens used for a complex reasoning turn
 - The actual quota cost may be 50K-200K+ (thinking + output combined)
 - The usage bar jumps by an amount that doesn't match your visible token counts
-- There is no client-side mitigation
+- There is no known client-side mitigation as of v2.1.91
 
 ### Practical tactics
 
@@ -518,6 +518,8 @@ When you see these signs, start a fresh session. Do not try to "remind" Claude b
 
 ### Why /compact is not recommended
 
+For the essential reasoning behind this recommendation, see [11_USAGE-GUIDE.md](11_USAGE-GUIDE.md). This section expands on the implementation details for power users.
+
 `/compact` performs lossy compression — it drops specific variable names, exact error messages, line numbers, and decision rationale. The resulting summary gives Claude a vague outline of "what was discussed" but lacks the precision needed to continue work accurately. In practice, post-compact sessions produce more hallucinations and redundant work than fresh sessions that read well-maintained documents.
 
 **The better pattern: document-based session handoff.**
@@ -528,6 +530,8 @@ Instead of compacting, update your working documents at the end of each session 
 2. **Start the next session fresh.** The new session reads the updated documents (step 1 of the session startup ritual) and has clean, verified context.
 
 This pattern works because you control what is preserved — not an automated summarizer. Each session's learnings are captured in durable, human-verified files rather than trapped in a lossy AI summary. Over months of multi-project operation, this approach consistently produces better session continuity than any combination of `/compact` and `--resume`.
+
+This is an instance of [Andrej Karpathy's "LLM Wiki" pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): rather than re-deriving context on every query, incrementally maintain structured documents that the LLM reads and updates. In this context, CLAUDE.md is the schema (behavioral instructions), MEMORY.md is the index (pointers to topic files), and PLAN files are the working log (session-specific state). The three-tier CLAUDE.md architecture (Section 1) maps directly to the wiki's layered structure. This workflow should ideally be automated by the tool — but until it is, manual document maintenance is the most reliable approach to preserving context quality across sessions.
 
 ### Compaction environment variables
 
@@ -569,7 +573,7 @@ This pattern works because you control what is preserved — not an automated su
 
 | Document | Topic |
 |----------|-------|
-| [01_BUGS.md](01_BUGS.md) | 7 confirmed bugs — technical root cause analysis |
+| [01_BUGS.md](01_BUGS.md) | 6 confirmed client-side bugs — technical root cause analysis |
 | [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) | Dual 5h/7d quota architecture from 3,702 proxy requests |
 | [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) | Session log analysis methodology (110 main + 279 subagent sessions) |
 | [04_BENCHMARK.md](04_BENCHMARK.md) | Performance benchmarks |

@@ -44,7 +44,7 @@ A "session" is one continuous conversation with Claude Code. Every time you run 
 
 This is the single most impactful habit you can build. Think of sessions like browser tabs: fresh ones are cheap and fast, but stale ones accumulate invisible debt — bloated context, truncated tool results, and degraded recall — even when every metric looks healthy.
 
-**In practice:** In one real workflow managing a data pipeline project, a single session that lasted 150+ turns maintained a cache ratio at 99%. The numbers looked perfectly healthy. But Claude could not accurately reference any file it had read before turn 40. It would paraphrase earlier findings incorrectly, miss key details from files it had "seen," and suggest approaches that contradicted its own earlier analysis. The metrics said everything was fine; the experience said otherwise.
+**In practice:** In one tested workflow managing a data pipeline project, a single session that lasted 150+ turns maintained a cache ratio at 99%. The numbers looked perfectly healthy. But Claude could not accurately reference any file it had read before turn 40. It would paraphrase earlier findings incorrectly, miss key details from files it had "seen," and suggest approaches that contradicted its own earlier analysis. The metrics said everything was fine; the experience said otherwise.
 
 **When to start a new session:**
 
@@ -97,6 +97,8 @@ This "document cross-validation" pattern works because:
 
 In a workflow managing multiple projects over months, this pattern consistently outperforms `/compact`. Sessions that start by reading updated documents are more focused and accurate than sessions that rely on compacted conversation history — because the documents contain exactly what you chose to preserve, with nothing silently dropped.
 
+This approach aligns with [Andrej Karpathy's "LLM Wiki" pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — instead of re-deriving context on every query (like RAG or `/compact`), you incrementally maintain structured documents that the LLM reads and updates. CLAUDE.md serves as the schema, MEMORY.md as the index, and PLAN files as the working log. The LLM handles the "grunt work — summarizing, cross-referencing, filing, and bookkeeping" while the user curates and verifies. Ideally, this should be handled automatically by the tool itself — but until it is, this manual workflow is the most reliable way to maintain context quality across sessions.
+
 ---
 
 ## 3. Understanding Context (Why Claude "Gets Dumb")
@@ -125,7 +127,7 @@ The model is not getting dumber — it is literally losing access to information
 
 **Measured example:** In one tested session, 261 budget truncation events were detected. Tool results that originally contained thousands of characters were reduced to single-digit lengths. The threshold was crossed at 242,094 total characters of tool output (see [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions)).
 
-**In practice:** During a code review session reading 25 files across 3 modules, the tool result budget silently kicked in around file 18. Claude started giving generic suggestions instead of file-specific feedback — because it could no longer see the contents of the first 12 files it had read. The review went from "this null check on line 73 conflicts with the guard clause on line 31 of handler.py" to "consider adding error handling to your functions." The quality drop was abrupt, not gradual.
+**In practice:** During one code review session reading 25 files across 3 modules, the tool result budget silently kicked in around file 18. Claude started giving generic suggestions instead of file-specific feedback — because it could no longer see the contents of the first 12 files it had read. The review went from "this null check on line 73 conflicts with the guard clause on line 31 of handler.py" to "consider adding error handling to your functions." The quality drop was abrupt, not gradual.
 
 **What this looks like to you:**
 - Claude contradicts something it said earlier (it can no longer see the data it based that statement on)
@@ -194,7 +196,6 @@ All matching files are loaded together. If you have a global CLAUDE.md (500 toke
 - API responses: always return {data, error, timestamp}
 
 # Git
-- Never commit CLAUDE.md or PLAN.txt
 - Commit message: imperative mood, <72 chars
 - git email: user@users.noreply.github.com
 
@@ -236,7 +237,7 @@ In practice, one configuration that grew like this over months reached 800+ line
 
 **MEMORY.md:** For information that changes frequently — project status, current tasks, feedback from past sessions — use MEMORY.md instead of CLAUDE.md. MEMORY.md also loads every turn, but it is auto-managed and easier to keep lean. The key practice: use it as an **index of pointers** rather than dumping everything into one file. Each entry is a one-line reference to a separate file that Claude can read on demand. This keeps the per-turn cost low while making detailed context available when needed.
 
-**PLAN files:** Keep planning documents (current task, approach decisions, error logs) in separate files like PLAN.txt rather than in CLAUDE.md. Claude can read them on demand, and they do not cost tokens every turn. Do not commit these to version control — they are working documents that change constantly and have no value in git history.
+**PLAN files:** Keep planning documents (current task, approach decisions, error logs) in separate files like PLAN.txt rather than in CLAUDE.md. Claude can read them on demand, and they do not cost tokens every turn. Don't commit PLAN files to git — they are session-specific working documents that change constantly and have no value in git history. Whether to commit CLAUDE.md is a judgment call: commit it if the team needs shared instructions, keep it local if it contains personal workflow preferences.
 
 ---
 
@@ -325,7 +326,7 @@ Several community members have built tools that make monitoring easier:
 | **ccdiag** | Go-based CLI tool for JSONL session log recovery and DAG analysis | [github.com/kolkov/ccdiag](https://github.com/kolkov/ccdiag) |
 | **context-stats** | Per-interaction cache metrics export and analysis | [github.com/luongnv89/cc-context-stats](https://github.com/luongnv89/cc-context-stats) |
 | **BudMon** | Desktop dashboard for real-time rate-limit header monitoring | [github.com/weilhalt/budmon](https://github.com/weilhalt/budmon) |
-| **claude-usage-dashboard** | Standalone Node.js dashboard with forensic analysis and multi-host aggregation | [github.com/fgrosswig/claude-usagage-dashboard](https://github.com/fgrosswig/claude-usagage-dashboard) |
+| **claude-usage-dashboard** | Standalone Node.js dashboard with forensic analysis and multi-host aggregation | [github.com/fgrosswig/claude-usage-dashboard](https://github.com/fgrosswig/claude-usage-dashboard) |
 | **tokenlean** | 54 CLI tools that extract symbols/snippets instead of full file reads, reducing token waste | [github.com/edimuj/tokenlean](https://github.com/edimuj/tokenlean) |
 
 For the full list of community tools and analysis resources, see [10_ISSUES.md](10_ISSUES.md#community-analysis--tools).

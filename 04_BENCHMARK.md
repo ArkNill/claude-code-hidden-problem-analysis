@@ -2,9 +2,9 @@
 
 # Cache Efficiency Benchmark — npm vs Standalone
 
-> **Current answer (v2.1.91):** They're the same. Both hit 84.7% cold start and 97-99% stable. The Sentinel gap from v2.1.90 is gone. Use whichever you prefer.
+> **Current answer (v2.1.91):** On v2.1.91, npm hits 84.5% cold start. Standalone varies by workspace (27.8% in the full benchmark, higher in single-prompt tests), but recovery is dramatically faster than v2.1.90 — both converge to 94-99% within a few requests. Use whichever you prefer.
 >
-> The v2.1.90 data below is kept for reference — it shows the gap that existed and how it was measured. The v2.1.91 head-to-head comparison is at the [bottom of this file](#v2191-addendum-april-3-2026).
+> The v2.1.90 data below is kept for reference — it shows the gap that existed and how it was measured. The v2.1.91 head-to-head comparison is at the [bottom of this file](#v2191-full-benchmark-april-3-2026).
 
 **v2.1.90 test date:** April 2, 2026 | **v2.1.91 test date:** April 3, 2026
 
@@ -438,7 +438,7 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 | Metric | v2.1.90 npm | v2.1.90 standalone | v2.1.91 npm | v2.1.91 standalone |
 |--------|------------|-------------------|------------|-------------------|
 | Scenarios | 7 (1-7) | 4 (A-D) | 7 (1-7) | 4 (A-D) |
-| Requests | ~1,753 | ~200 | 34 | 30 |
+| Requests | ~1,753* | ~200 | 34 | 30 |
 | Overall cache | 86.4% | 86.2% | **88.4%** | **84.1%** |
 | Cold start | 63.5-80% | **14.6-47.2%** | **84.5%** | **27.8%** |
 | Cold start recovery | 3-5 reqs to 95%+ | 3-5 reqs to 94-99% | 2 reqs to 98%+ | **1 req to 99.3%** |
@@ -446,9 +446,11 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 | Sub-agent stable | 87-94% | 94-99% | **93-99%** | **91-99%** |
 | Stable session | 95-99.8% | 95-99.7% | **98-99.6%** | **94-99%** |
 
+*\*v2.1.90 request counts include sub-agent turns (each sub-agent turn = one request in the proxy log), while v2.1.91 counts are main session requests only. The v2.1.90 npm session spawned many sub-agents for Scenario 7 (79-report parallel read), inflating its count.*
+
 **Findings:**
 
-1. **Standalone cold start varies**: v2.1.91 standalone showed 27.8% on first request in the full benchmark (vs 84.7% in the earlier single-prompt test). This suggests the initial context loading (CLAUDE.md, memory files, tool schemas) affects cold start differently depending on workspace configuration. npm showed a consistent 84.5%.
+1. **Standalone cold start varies**: v2.1.91 standalone showed 27.8% on first request in the full benchmark. A preliminary single-prompt test before this benchmark showed a higher cold start (~84.7%), but that test used a lighter workspace configuration and was not recorded in detail. The difference suggests initial context loading (CLAUDE.md, memory files, tool schemas) affects cold start depending on workspace size. npm showed a consistent 84.5%.
 
 2. **Recovery is much faster on v2.1.91**: Standalone recovered from 27.8% to 99.3% in a single request. On v2.1.90, recovery from 14-47% took 3-5 requests.
 

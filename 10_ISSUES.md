@@ -12,10 +12,10 @@
 - [#40524](https://github.com/anthropics/claude-code/issues/40524) — Conversation history invalidated (Bug 1: sentinel) — **improved in v2.1.89-91**
 - [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta) — **improved in v2.1.90-91**
 - [#40652](https://github.com/anthropics/claude-code/issues/40652) — cch= billing hash substitution
-- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **Client-side false rate limiter** (Bug 3: 151 synthetic entries confirmed) — **unfixed**
+- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **Client-side false rate limiter** (Bug 3: 151 `<synthetic>` entries across 65 session files (all-time; 24 entries in the April 1-6 analysis window — see [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md))) — **unfixed**
 - [#42542](https://github.com/anthropics/claude-code/issues/42542) — **Silent microcompact → context degradation** (Bug 4: 327 events, cache unaffected) — **unfixed**
 - Bug 5: **Tool result budget enforcement** (200K aggregate cap, discovered via GrowthBook flags) — **unfixed** (v2.1.91 MCP override only)
-- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL log duplication** (Bug 8: 2.87x PRELIM inflation) — **unfixed**
+- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL log duplication** (Bug 8: 2.87x token inflation in one measured session (1.93x average across all sessions — see [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md))) — **unfixed**
 
 ### Server-Side Billing Bugs
 - [#42616](https://github.com/anthropics/claude-code/issues/42616) — Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M context
@@ -50,7 +50,7 @@
 
 **Our measured data raises questions about this assessment:**
 - **Bug 5 (200K cap):** Tool results silently truncated to 1-41 chars after the aggregate 200K threshold. Users paying for 1M context effectively have a 200K tool result budget for built-in tools — the rest is silently discarded.
-- **Bug 3 (synthetic RL):** 151 `<synthetic>` entries across 65 sessions on our setup alone. The client blocks API calls without server involvement — users see "Rate limit reached" with zero actual API consumption.
+- **Bug 3 (synthetic RL):** 151 `<synthetic>` entries across 65 session files (all-time; 24 entries in the April 1-6 analysis window — see [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)). The client blocks API calls without server involvement — users see "Rate limit reached" with zero actual API consumption.
 - **Bug 8 (PRELIM duplication):** Extended thinking sessions log 2-3x more token entries than actual API calls. Whether the server-side rate limiter counts these remains an open question.
 
 | Who | Platform | What | Link |
@@ -74,7 +74,7 @@
 - [CUStats](https://custats.info) — Real-time usage tracking and visualization
 - [context-stats](https://github.com/luongnv89/cc-context-stats) — Per-interaction cache metrics export and analysis (by [@luongnv89](https://github.com/luongnv89))
 - [BudMon](https://github.com/weilhalt/budmon) — Desktop dashboard for rate-limit header monitoring
-- [claude-usage-dashboard](https://github.com/fgrosswig/claude-usagage-dashboard) — Standalone Node.js JSONL dashboard with forensic analysis, multi-host aggregation, and implicit budget estimation (by [@fgrosswig](https://github.com/fgrosswig))
+- [claude-usage-dashboard](https://github.com/fgrosswig/claude-usage-dashboard) — Standalone Node.js JSONL dashboard with forensic analysis, multi-host aggregation, and implicit budget estimation (by [@fgrosswig](https://github.com/fgrosswig))
 - [Resume cache fix patch](https://gist.github.com/simpolism/302621e661f462f3e78684d96bf307ba) — Fixes two remaining `--resume` cache misses on v2.1.91 (by [@simpolism](https://github.com/simpolism))
 
 ### Token Optimization Tools

@@ -57,9 +57,9 @@
 **Findings:**
 - **Bug 5 (Budget Cap)** discovered: `applyToolResultBudget()` enforces 200K aggregate cap via `tengu_hawthorn_window` GrowthBook flag. **261 budget events** measured — tool results truncated to 1-41 chars. v2.1.91 `maxResultSizeChars` override is MCP-only, built-in tools unaffected.
 - **Bug 8 (JSONL Duplication)** measured: extended thinking generates 2-5 PRELIM entries per API call. Main session: **2.87x** token inflation.
-- **v2.1.91 benchmark results:** Sentinel gap closed — npm and standalone both hit 84.7% cold start. Cache recovers to 98%+ in 2 requests. All bugs except B1-B2 persist.
+- **v2.1.91 benchmark results:** Sentinel gap closed — npm and standalone both hit 84.7% cold start. Cache recovers to 95%+ within a few requests. All bugs except B1-B2 persist.
 - **Bug 3 confirmed:** 151 `<synthetic>` entries across 65 sessions on our setup.
-- **Bug 4 event count:** 327 microcompact clearing events across all tested sessions.
+- **Bug 4 event count:** 327 microcompact clearing events across the April 3 focused test sessions.
 
 **Published:**
 - Repository created: [claude-code-cache-analysis](https://github.com/ArkNill/claude-code-cache-analysis) (now renamed)
@@ -96,7 +96,7 @@
 
 **Data collected:**
 - **1,333 additional requests with headers** (total now 3,430+)
-- Total proxy DB: 8,794 requests, 1,245 microcompact events, 23,021 budget events
+- Total proxy DB: 8,794 requests, 1,245 microcompact events, 23,021 budget events. (327 events were from the April 3 focused test sessions; the 1,245 total includes all sessions captured by the proxy since April 1.)
 
 **Community activity:**
 - **[@fgrosswig](https://github.com/fgrosswig)** published [64x budget reduction forensics](https://github.com/anthropics/claude-code/issues/38335#issuecomment-4189537353) in #38335: dual-machine 18-day JSONL analysis. Mar 26: 3.2B tokens no limit → Apr 5: 88M at 90%. Hypothesis: cache-read weight changed from ~0x to ~1x.
@@ -152,9 +152,10 @@
 
 ---
 
-## Upcoming — April 7-10
+## Planned (as of April 6)
 
-**Planned:**
+The following items were identified during the April 1-6 analysis cycle and remain pending:
+
 - Continue rate limit header data collection through April 10 (7d window reset)
 - **Thinking token isolation test**: run sessions with `alwaysThinkingEnabled: false` and compare per-1% utilization cost. If it drops significantly → thinking tokens are the main driver. If not → cache-read weighting is primary.
 - Publish full 7-day cycle analysis with per-window utilization tracking

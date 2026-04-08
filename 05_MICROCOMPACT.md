@@ -25,7 +25,7 @@ In heavy tool-use sessions (50+ file reads, greps, bash commands), [@Sn3th](http
 
 These are controlled by [GrowthBook](https://www.growthbook.io/), a feature-flagging system. The Claude Code CLI fetches flags from Anthropic's servers and caches them in `~/.claude.json`. Users cannot disable these flags — Anthropic controls them server-side and can change behavior without a client update.
 
-Source: `src/services/compact/` in the Claude Code binary.
+Source: `src/services/compact/` in the Claude Code binary (from the publicly available npm bundle, as documented in [#42542](https://github.com/anthropics/claude-code/issues/42542)).
 
 | Mechanism | Source | Trigger | Control |
 |-----------|--------|---------|---------|
@@ -92,7 +92,7 @@ If this gate flips on via A/B test, sessions will retain 20K tokens max — a fr
 
 **Initial hypothesis (April 2):** We expected microcompact to invalidate prompt cache prefixes, causing 0% cache read and full-price billing.
 
-**Measured result:** This hypothesis was **partially wrong.** Proxy data across 327 events (all sessions combined) shows:
+**Measured result:** This hypothesis was **partially wrong.** Proxy data across 327 events (all sessions combined) shows the following. See [04_BENCHMARK.md](04_BENCHMARK.md) for detailed sub-agent cache measurements.
 
 | Context | Cache ratio during clearing | Explanation |
 |---------|---------------------------|-------------|
@@ -118,10 +118,10 @@ Proxy-based request body scanner (cc-relay + `ANTHROPIC_BASE_URL`) detects `[Old
 
 ### Confirmed Results (April 3, 2026)
 
-Systematic testing with enhanced cc-relay proxy across multiple sessions (3,500+ logged requests, 327 microcompact events total):
+Systematic testing with enhanced cc-relay proxy across multiple sessions (3,500+ logged requests, 327 microcompact events total). See [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) for the full session log analysis.
 
 **Clearing Pattern:**
-- **327 events** detected total — 67 and 71 in two major v2.1.90 sessions, remainder across v2.1.91 test sessions and sub-agents
+- **327 events** detected total — 67 and 71 in two major v2.1.90 sessions, 14 in v2.1.91 test sessions, and the remaining events from sub-agent sessions spawned during the v2.1.90 testing
 - Clearing indices **expand over time**: starts at [20,22], grows to [20,22,38,40,44,46,162,166,172,174,206]
 - **All cleared indices are even-numbered** → targets tool_use/tool_result pairs specifically
 - Same indices cleared consistently on every subsequent API call (stable substitution)
