@@ -15,10 +15,10 @@
 - [#40524](https://github.com/anthropics/claude-code/issues/40524) — 대화 히스토리 무효화 (버그 1: sentinel) — **v2.1.89-91에서 개선**
 - [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume 캐시 리그레션(이전 대화 이어가기 시 캐시 재활용 실패) (버그 2: deferred_tools_delta) — **v2.1.90-91에서 개선**
 - [#40652](https://github.com/anthropics/claude-code/issues/40652) — cch= 빌링 해시 치환(과금 식별자가 잘못 바뀌는 문제)
-- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **클라이언트 측 허위 rate limiter**(실제 서버 제한이 아닌데 "제한 도달"이라고 뜨는 현상) (버그 3: 151건의 synthetic 항목 확인) — **미수정**
+- [#40584](https://github.com/anthropics/claude-code/issues/40584) — **클라이언트 측 허위 rate limiter**(실제 서버 제한이 아닌데 "제한 도달"이라고 뜨는 현상) (버그 3: 151건의 synthetic 항목 확인 (전체 기간; 4월 1-6일 분석 기간에는 24건 — [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) 참조)) — **미수정**
 - [#42542](https://github.com/anthropics/claude-code/issues/42542) — **조용한 microcompact → 컨텍스트 품질 저하**(대화 맥락이 사용자 몰래 삭제되는 현상) (버그 4: 327건 이벤트, 캐시 영향 없음) — **미수정**
 - 버그 5: **Tool 결과 budget enforcement**(도구가 돌려준 결과를 강제로 잘라내는 현상) (200K 누적 캡, GrowthBook 플래그를 통해 발견) — **미수정** (v2.1.91 MCP 오버라이드만 가능)
-- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL 로그 중복**(세션 기록에 같은 내용이 여러 번 기록되는 현상) (버그 8: 2.87배 PRELIM 인플레이션) — **미수정**
+- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL 로그 중복**(세션 기록에 같은 내용이 여러 번 기록되는 현상) (버그 8: 2.87배 PRELIM 인플레이션 (단일 세션 측정치; 전체 세션 평균 1.93x — [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) 참조)) — **미수정**
 
 ### 서버 측 빌링 버그
 
@@ -94,7 +94,7 @@ Anthropic 서버 쪽에서 발생하는 과금 관련 문제들입니다.
 - [CUStats](https://custats.info) — 실시간 사용량 추적 및 시각화
 - [context-stats](https://github.com/luongnv89/cc-context-stats) — 대화별 캐시 메트릭(측정값) 내보내기 및 분석 ([@luongnv89](https://github.com/luongnv89) 제작)
 - [BudMon](https://github.com/weilhalt/budmon) — rate-limit 헤더(사용량 제한 정보) 모니터링용 데스크톱 대시보드
-- [claude-usage-dashboard](https://github.com/fgrosswig/claude-usagage-dashboard) — 상세 분석, 여러 컴퓨터 데이터 통합, 숨겨진 budget 추정 기능이 있는 독립형 Node.js JSONL 대시보드 ([@fgrosswig](https://github.com/fgrosswig) 제작)
+- [claude-usage-dashboard](https://github.com/fgrosswig/claude-usage-dashboard) — 상세 분석, 여러 컴퓨터 데이터 통합, 숨겨진 budget 추정 기능이 있는 독립형 Node.js JSONL 대시보드 ([@fgrosswig](https://github.com/fgrosswig) 제작)
 - [Resume cache fix patch](https://gist.github.com/simpolism/302621e661f462f3e78684d96bf307ba) — v2.1.91에서 남아있는 두 가지 `--resume` 캐시 미스(캐시 재활용 실패) 수정 ([@simpolism](https://github.com/simpolism) 제작)
 
 ### 토큰 최적화 도구

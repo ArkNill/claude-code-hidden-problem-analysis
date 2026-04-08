@@ -224,3 +224,5 @@ Rate limit headers captured via cc-relay transparent proxy. Each row = one clock
 ---
 
 *Environment: Max 20x ($200/mo), Opus 4.6 1M, v2.1.91 via cc-relay transparent proxy, Linux (ZBook Ultra), single machine. 8,794 total proxy requests, 3,702 with rate limit headers.*
+
+*This analysis is based on community research and personal measurement. It is not endorsed by Anthropic. All data captured using official tools and documented features.*

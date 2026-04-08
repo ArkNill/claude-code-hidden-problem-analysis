@@ -327,7 +327,7 @@ ps aux | grep -c '[c]laude'
 | **ccdiag** | Go 기반 CLI 도구, JSONL 세션 로그 복구 및 DAG 분석 | [github.com/kolkov/ccdiag](https://github.com/kolkov/ccdiag) |
 | **context-stats** | 인터랙션별 캐시 메트릭 내보내기 및 분석 | [github.com/luongnv89/cc-context-stats](https://github.com/luongnv89/cc-context-stats) |
 | **BudMon** | 실시간 레이트 리미트 헤더 모니터링 데스크톱 대시보드 | [github.com/weilhalt/budmon](https://github.com/weilhalt/budmon) |
-| **claude-usage-dashboard** | 포렌식 분석(forensic analysis) 및 다중 호스트 집계 기능이 있는 독립형 Node.js 대시보드 | [github.com/fgrosswig/claude-usagage-dashboard](https://github.com/fgrosswig/claude-usagage-dashboard) |
+| **claude-usage-dashboard** | 포렌식 분석(forensic analysis) 및 다중 호스트 집계 기능이 있는 독립형 Node.js 대시보드 | [github.com/fgrosswig/claude-usage-dashboard](https://github.com/fgrosswig/claude-usage-dashboard) |
 | **tokenlean** | 전체 파일 읽기 대신 심볼/스니펫을 추출하여 토큰 낭비를 줄이는 54개 CLI 도구 | [github.com/edimuj/tokenlean](https://github.com/edimuj/tokenlean) |
 
 커뮤니티 도구 및 분석 리소스의 전체 목록은 [10_ISSUES.md](10_ISSUES.md#community-analysis--tools)를 참조하십시오.

@@ -271,7 +271,7 @@ v2.1.91에서 대화 기록 연결 끊김 수정이 추가되었습니다.
 - `autocompact thrash loop detection` — 실제로는 v2.1.89에 포함
 
 ### v2.1.89 (4월 1일)
-- `autocompact thrash loop` 3회 재시도 후 중단 — **B7 부분 수정**
+- `autocompact thrash loop` 3회 재시도 후 중단 — **B6 부분 수정**
 - `tool schema bytes changing mid-session` — **B1 부분 수정**
 - `nested CLAUDE.md re-injection` — 컨텍스트 비대화 수정
 - `StructuredOutput schema cache ~50% failure` — 별도 cache 버그

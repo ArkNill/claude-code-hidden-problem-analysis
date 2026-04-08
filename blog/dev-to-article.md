@@ -33,7 +33,7 @@ The proxy revealed the server-side quota architecture: **dual sliding windows** 
 |--------|-------|
 | Visible output per 1% | 9K-16K tokens |
 | Cache read per 1% | 1.5M-2.1M tokens |
-| Total visible per 1% | 1.6M-2.1M tokens |
+| Total visible per 1% | 1.5M-2.1M tokens |
 
 At 9K-16K visible output per 1%, using the full 5h window (100%) means only 0.9M-1.6M visible tokens of output. For context, that's roughly the output of 30-50 moderately sized code generations across an entire work session.
 
@@ -49,16 +49,16 @@ Community members reached the same conclusion through separate investigations:
 
 A thinking-disabled isolation test is planned for the week of April 6 to measure the exact impact.
 
-## It Gets Worse: 6 More Bugs
+## It Gets Worse: 5 More Bugs
 
-The thinking token blind spot isn't the only problem. The investigation uncovered **7 confirmed bugs across 5 layers**:
+The thinking token blind spot isn't the only problem. The investigation uncovered **6 confirmed client-side bugs across 4 layers**:
 
 ### Fixed (v2.1.91)
 
 | Bug | What | Impact |
 |-----|------|--------|
 | **Sentinel** | Standalone binary breaks cache prefix | Cache drops to 4-17%, 20x cost ([#40524](https://github.com/anthropics/claude-code/issues/40524)) |
-| **Resume** | `--resume` replays full context uncached | ~$0.15 per resume on 500K conversation ([#34629](https://github.com/anthropics/claude-code/issues/34629)) |
+| **Resume** | `--resume` replays full context uncached | Full cache miss per resume on 500K conversation ([#34629](https://github.com/anthropics/claude-code/issues/34629)) |
 
 **Update to v2.1.91 if you haven't already.** This fixes the single largest drain.
 

@@ -57,7 +57,7 @@
 **Findings:**
 - **Bug 5 (Budget Cap)** discovered: `applyToolResultBudget()` enforces 200K aggregate cap via `tengu_hawthorn_window` GrowthBook flag. **261 budget events** measured — tool results truncated to 1-41 chars. v2.1.91 `maxResultSizeChars` override is MCP-only, built-in tools unaffected.
 - **Bug 8 (JSONL Duplication)** measured: extended thinking generates 2-5 PRELIM entries per API call. Main session: **2.87x** token inflation.
-- **v2.1.91 benchmark results:** Sentinel gap closed — npm and standalone both hit 84.7% cold start. Cache recovers to 95%+ within a few requests. All bugs except B1-B2 persist.
+- **v2.1.91 benchmark results:** Sentinel gap closed — npm hit 84.5% cold start; standalone varied by workspace (27.8% in full benchmark, higher in preliminary tests). Cache recovers to 95%+ within a few requests. All bugs except B1-B2 persist.
 - **Bug 3 confirmed:** 151 `<synthetic>` entries across 65 sessions on our setup.
 - **Bug 4 event count:** 327 microcompact clearing events across the April 3 focused test sessions.
 

@@ -121,7 +121,7 @@ Proxy-based request body scanner (cc-relay + `ANTHROPIC_BASE_URL`) detects `[Old
 Systematic testing with enhanced cc-relay proxy across multiple sessions (3,500+ logged requests, 327 microcompact events total). See [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) for the full session log analysis.
 
 **Clearing Pattern:**
-- **327 events** detected total — 67 and 71 in two major v2.1.90 sessions, 14 in v2.1.91 test sessions, and the remaining events from sub-agent sessions spawned during the v2.1.90 testing
+- **327 events** detected total — 67 and 71 in two major v2.1.90 sessions, 14 in v2.1.91 test sessions, and the remaining 175 events from sub-agent sessions spawned during the v2.1.90 testing
 - Clearing indices **expand over time**: starts at [20,22], grows to [20,22,38,40,44,46,162,166,172,174,206]
 - **All cleared indices are even-numbered** → targets tool_use/tool_result pairs specifically
 - Same indices cleared consistently on every subsequent API call (stable substitution)

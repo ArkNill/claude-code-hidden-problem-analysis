@@ -271,7 +271,7 @@ Key observation: even at 800KB+ body with active microcompact clearing, cache re
 - `autocompact thrash loop detection` — actually in v2.1.89
 
 ### v2.1.89 (Apr 1)
-- `autocompact thrash loop` 3-retry stop — **B7 partial fix** (autocompact thrash loop — see [07_TIMELINE.md](07_TIMELINE.md))
+- `autocompact thrash loop` 3-retry stop — **B6 partial fix** (autocompact thrash loop — see [07_TIMELINE.md](07_TIMELINE.md))
 - `tool schema bytes changing mid-session` — **B1 partial fix**
 - `nested CLAUDE.md re-injection` — context bloat fix
 - `StructuredOutput schema cache ~50% failure` — separate cache bug

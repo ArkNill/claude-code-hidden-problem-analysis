@@ -108,7 +108,7 @@ What started as personal debugging quickly expanded. Dozens of users were report
 |------|--------------|
 | Apr 1 | 70-minute 100% drain → v2.1.89 regression confirmed, proxy setup |
 | Apr 2 | Bugs 3-4 discovered (false rate limiter, silent microcompact). Anthropic's Lydia Hallie posts on X |
-| Apr 3 | Bug 5 discovered (200K budget cap). v2.1.91 benchmark: cache fixed, 5 other bugs persist. [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) |
+| Apr 3 | Bug 5 discovered (200K budget cap). v2.1.91 benchmark: cache fixed, 4 other active bugs persist (B3-B5, B8). [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) |
 | Apr 4-6 | cc-relay captures 3,702 requests with rate limit headers. Community analysis continues |
 | Apr 6 | Dual-window quota analysis published. Community cross-validation (fgrosswig 64x, Commandershadow9 34-143x). [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
