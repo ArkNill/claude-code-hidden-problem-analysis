@@ -171,6 +171,8 @@ Lydia Hallie는 Sonnet을 기본 모델로 사용하고, effort 레벨을 낮추
 | **[09_QUICKSTART.md](09_QUICKSTART.md)** | 설정 가이드 + 자가 진단 | 4월 3일 |
 | **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | 일일 조사 로그 — 무엇을, 언제, 어떻게 발견했는지 | 4월 1-6일 |
 | **[10_ISSUES.md](10_ISSUES.md)** | 91건 이상 관련 이슈 + 커뮤니티 도구 + 기여자 | 4월 6일 |
+| **[11_USAGE-GUIDE.md](11_USAGE-GUIDE.md)** | 필수 사용 가이드 — 세션, context, CLAUDE.md, 토큰 절약 | 4월 8일 |
+| **[12_ADVANCED-GUIDE.md](12_ADVANCED-GUIDE.md)** | 고급 사용 가이드 — hooks, 서브에이전트, 모니터링, rate limit 전략 | 4월 8일 |
 
 ## 환경
 

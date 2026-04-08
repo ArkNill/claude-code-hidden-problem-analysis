@@ -152,6 +152,8 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 | **[09_QUICKSTART.md](09_QUICKSTART.md)** | Setup guide + self-diagnosis | Apr 3 |
 | **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log — what was found, when, how | Apr 1-6 |
 | **[10_ISSUES.md](10_ISSUES.md)** | 91+ related issues + community tools + contributors | Apr 6 |
+| **[11_USAGE-GUIDE.md](11_USAGE-GUIDE.md)** | Essential usage guide — sessions, context, CLAUDE.md, token-saving | Apr 8 |
+| **[12_ADVANCED-GUIDE.md](12_ADVANCED-GUIDE.md)** | Power user guide — hooks, subagents, monitoring, rate limit tactics | Apr 8 |
 
 ## Environment
 
