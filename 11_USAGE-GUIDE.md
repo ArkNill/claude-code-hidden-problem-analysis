@@ -42,7 +42,9 @@ A "session" is one continuous conversation with Claude Code. Every time you run 
 
 ### Start Fresh Sessions Often
 
-This is the single most impactful habit you can build. Fresh sessions are cheap — stale sessions get bloated and lose information silently.
+This is the single most impactful habit you can build. Think of sessions like browser tabs: fresh ones are cheap and fast, but stale ones accumulate invisible debt — bloated context, truncated tool results, and degraded recall — even when every metric looks healthy.
+
+**In practice:** In one real workflow managing a data pipeline project, a single session that lasted 150+ turns maintained a cache ratio at 99%. The numbers looked perfectly healthy. But Claude could not accurately reference any file it had read before turn 40. It would paraphrase earlier findings incorrectly, miss key details from files it had "seen," and suggest approaches that contradicted its own earlier analysis. The metrics said everything was fine; the experience said otherwise.
 
 **When to start a new session:**
 
@@ -53,6 +55,17 @@ This is the single most impactful habit you can build. Fresh sessions are cheap 
 | After 30+ tool uses total | Context quality degrades as more results are cleared |
 | When Claude seems to "forget" what it read earlier | This is likely silent truncation, not forgetfulness |
 | After a compaction event (you see a summary message) | Post-compaction, Claude only has the summary — not the raw data |
+
+### The Session Rotation Pattern
+
+After completing each self-contained task — fixing a bug, adding a feature, reviewing code — close the session and start a new one. Before closing, copy 2-3 key context lines into a scratch note. Then paste them into your new session's first message. For example:
+
+```
+Working on src/api/auth.py — added rate limiting in validate_token().
+Tests in tests/test_auth.py pass. Next: wire up the /logout endpoint.
+```
+
+This costs a few seconds but gives Claude a clean context window with exactly the information it needs. In a multi-project workflow, this pattern is the difference between sessions that stay sharp for hours and sessions that silently degrade after the first 20 minutes.
 
 ### Avoid --resume and --continue
 
@@ -68,7 +81,7 @@ When a conversation gets long, Claude Code compresses older context to stay with
 
 **Automatic compaction:** Three separate mechanisms run silently on every API call, replacing old tool outputs with placeholder text like `[Old tool result content cleared]`. These run regardless of any environment variable settings — even `DISABLE_AUTO_COMPACT=true` does not stop all of them (see [05_MICROCOMPACT.md](05_MICROCOMPACT.md) for technical details).
 
-**After any compaction:** Claude can no longer see the original file contents, command outputs, or search results from earlier in the session. It only sees the summary or placeholder. If you need Claude to reference specific earlier content, you will need to re-read those files.
+**After any compaction:** Claude knows WHAT it discussed (from the summary) but not the exact code, exact error messages, or exact line numbers. If you ask "what was the error on line 42?" after compaction, it will either hallucinate a plausible-sounding answer or admit it does not know — and the hallucination case is more dangerous because it looks confident. If you need Claude to reference specific earlier content, you will need to re-read those files.
 
 ---
 
@@ -97,6 +110,8 @@ The model is not getting dumber — it is literally losing access to information
 **What happens:** After approximately 15-20 file reads in a single session, the total tool result text exceeds a 200K character aggregate cap. At that point, older tool results are silently truncated to as few as 1-41 characters. Claude can no longer see those file contents, grep results, or command outputs — only a tiny stub remains.
 
 **Measured example:** In one tested session, 261 budget truncation events were detected. Tool results that originally contained thousands of characters were reduced to single-digit lengths. The threshold was crossed at 242,094 total characters of tool output (see [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions)).
+
+**In practice:** During a code review session reading 25 files across 3 modules, the tool result budget silently kicked in around file 18. Claude started giving generic suggestions instead of file-specific feedback — because it could no longer see the contents of the first 12 files it had read. The review went from "this null check on line 73 conflicts with the guard clause on line 31 of handler.py" to "consider adding error handling to your functions." The quality drop was abrupt, not gradual.
 
 **What this looks like to you:**
 - Claude contradicts something it said earlier (it can no longer see the data it based that statement on)
@@ -155,7 +170,7 @@ All matching files are loaded together. If you have a global CLAUDE.md (500 toke
 
 ### Examples
 
-**Good (compact, actionable — ~150 tokens):**
+**Good (compact, actionable — ~30 lines covering a multi-project setup):**
 ```markdown
 # Project Rules
 - Python 3.12, ruff for linting, pytest for tests
@@ -163,21 +178,51 @@ All matching files are loaded together. If you have a global CLAUDE.md (500 toke
 - PostgreSQL: parameterized queries only, no string concatenation
 - Run tests: pytest tests/ -x
 - API responses: always return {data, error, timestamp}
+
+# Git
+- Never commit CLAUDE.md or PLAN.txt
+- Commit message: imperative mood, <72 chars
+- git email: user@users.noreply.github.com
+
+# Key Paths
+- API entry: src/api/main.py
+- Pipeline config: pipeline/config.yaml
+- Error log: docs/error-log.md (read on demand, not here)
+
+# Security
+- .env patterns only. No hardcoded keys.
+- DELETE/DROP queries: always confirm with user first
 ```
 
-**Bad (bloated, generic — ~5,000+ tokens):**
+This gives Claude the tech stack, security policy, git conventions, and key file pointers — all in under 30 lines. Everything Claude needs to work correctly on the project, nothing it does not.
+
+**Bad (organically grown — 800+ lines):**
 ```markdown
-# Complete Python Development Guide
-## What is Python?
-Python is a high-level programming language...
-## Setting Up Your Environment
-First, install Python from python.org...
-## Best Practices for Clean Code
-1. Use meaningful variable names...
-[400 more lines of generic content]
+# Complete Project Reference
+## Architecture
+[ASCII diagram of 6 services, 40 lines]
+## Full API Reference
+### GET /api/v1/users
+Returns a list of users. Parameters: limit (int), offset (int)...
+### POST /api/v1/users
+Creates a new user. Body: {name: string, email: string}...
+[200 more lines of API docs]
+## Meeting Notes (2025-03)
+- Decided to switch from MySQL to PostgreSQL
+- Sarah will handle the migration script
+## Current Sprint Tasks
+- [ ] Fix login bug (#423)
+- [ ] Add rate limiting
+[150 more lines of planning notes and task lists]
 ```
 
-The good example gives Claude exactly the constraints it needs in 5 lines. The bad example wastes thousands of tokens on information Claude already has.
+In practice, one configuration that grew like this over months reached 800+ lines. It included a full API reference, architecture diagrams in ASCII, meeting notes, and a task backlog. Every single API call sent all 800 lines. Trimming it to 150 lines had zero impact on Claude's code quality but reduced per-turn overhead by 6,000+ tokens — tokens that were being billed on every turn for months.
+
+### Companion Files: MEMORY.md and PLAN Files
+
+**MEMORY.md:** For information that changes frequently — project status, current tasks, feedback from past sessions — use MEMORY.md instead of CLAUDE.md. MEMORY.md also loads every turn, but it is auto-managed and easier to keep lean. The key practice: use it as an **index of pointers** rather than dumping everything into one file. Each entry is a one-line reference to a separate file that Claude can read on demand. This keeps the per-turn cost low while making detailed context available when needed.
+
+**PLAN files:** Keep planning documents (current task, approach decisions, error logs) in separate files like PLAN.txt rather than in CLAUDE.md. Claude can read them on demand, and they do not cost tokens every turn. Do not commit these to version control — they are working documents that change constantly and have no value in git history.
 
 ---
 
@@ -194,6 +239,9 @@ Small habits compound across hundreds of turns per day. Each row below is a conc
 | **Fresh sessions for new tasks** | Old sessions carry irrelevant context and may have truncated tool results. | Close and restart when switching tasks. |
 | **Avoid background commands** | `/dream` and `/insights` make background API calls that consume quota silently. | Simply do not use them. |
 | **State your goal upfront** | Lets Claude plan before acting, reducing unnecessary file reads. | Start with "I need to add rate limiting to the /api/users endpoint" not "Show me the API code." |
+| **Never say "explore the codebase"** | Triggers dozens of file reads that burn through the tool result budget. | Point Claude at the 2-3 specific files relevant to your task. |
+
+**The hidden cost of vague exploration:** One of the biggest unnoticed drains is asking Claude to "look at the codebase" or "understand the project structure." In one measured session, a vague "explore the API" request caused 34 file reads in 8 minutes — consuming the entire tool result budget. By the time the actual task started, every file read from the exploration phase had already been truncated. The exploration itself became invisible, and Claude had to re-read the files it needed. The net result: double the token cost, zero benefit.
 
 ---
 
@@ -208,6 +256,7 @@ Small habits compound across hundreds of turns per day. Each row below is a conc
 | "Read the entire codebase" | Claude reads dozens of files, hits the 200K budget cap fast, and older results get truncated. | Be specific: "Read the auth module" or "Find where rate limiting is implemented." |
 | Running an old version | Versions before v2.1.91 have cache bugs that cause 4-17% efficiency (vs. 95%+ normal). Every token costs 5-25x more. | Run `claude --version` and update to v2.1.91+. |
 | Long sessions without breaks | After 50+ tool uses, effective context drops to ~40-80K despite the 1M window. Claude is working with 4-8% of what you think it sees. | Start a new session every 15-20 file reads or 30-50 tool uses. |
+| Growing CLAUDE.md without pruning | Instruction files that grow organically over months — adding rules but never removing outdated ones. Old rules accumulate, contradict each other, and inflate every turn. | Review and prune quarterly. In one case, reducing a 600-line file to 120 lines had no loss of Claude's effectiveness — most of the removed content was stale or redundant. |
 
 ---
 
@@ -228,6 +277,10 @@ file $(which claude)
 # Check if other terminals have claude running
 ps aux | grep -c '[c]laude'
 ```
+
+### The Most Useful Diagnostic
+
+Beyond metrics, there is one behavioral signal that is more reliable than any log file: **if Claude starts suggesting approaches you already tried earlier in the session, or cannot quote specific lines from files it read 10+ turns ago, your session is past its useful life.** This is the earliest detectable sign of context degradation. Do not troubleshoot it — just start fresh. The new session will cost far less than the circular turns you would spend in the degraded one.
 
 ### Reading Your Session Logs
 

@@ -30,6 +30,29 @@ All tiers are concatenated and sent as part of the system prompt on **every API 
 - **Combined target:** Under 200 lines across all tiers.
 - **Write for the model, not for humans.** Concise imperatives work better than explanatory prose. "Use `os.getenv()` for secrets, never hardcode" beats a paragraph about why environment variables matter.
 
+### Real-world tiering example
+
+Across months of daily usage with 14+ projects, the following three-tier split has proven effective:
+
+**Global (~40 lines)** covers what never changes between projects:
+- Coding language preference (Korean conversations, English code/config)
+- Git commit conventions (no auto-commits of instruction files, no co-author tags on local working docs)
+- Security policy (never hardcode secrets — `os.getenv()` with safe defaults, parameterized SQL only)
+- A one-line pointer to a shared coding standards document
+
+**Project A — backend API (~80 lines):**
+- Python 3.12, FastAPI + SQLAlchemy async
+- Test runner command (`pytest -x tests/`)
+- Key module paths (`api/routes/`, `api/models/`, `api/services/`)
+- Error log location (`docs/error-log.md`)
+
+**Project B — data pipeline (~60 lines):**
+- Python 3.12, CLI-only architecture (no web server, no API)
+- Data quality rules (source deduplication, encoding normalization)
+- Source format specs (JSON lines, UTF-8, specific date formats)
+
+Combined: ~180 lines across 3 tiers — well under budget. Every line earns its place.
+
 ### Cost analysis
 
 A 200-line CLAUDE.md is roughly 2,000 tokens. At typical cache rates (96-99% `cache_read`), this costs cache-read price per turn — cheap individually, but it compounds:
@@ -42,6 +65,8 @@ A 200-line CLAUDE.md is roughly 2,000 tokens. At typical cache rates (96-99% `ca
 | 1,000+ lines | ~10,000+ | High | Diminishing returns, cache fragility |
 
 The system prompt (including CLAUDE.md) forms the cache prefix. Larger prefixes mean more bytes to hash and match. Beyond ~500 lines, you increase the chance of cache misses from minor changes, and the instruction-following benefit plateaus.
+
+In practice, one CLAUDE.md grew to 800+ lines over 4 months because new rules were added but old ones were never removed. It included full API docs for a library Claude already knew, ASCII architecture diagrams that changed monthly, and a task backlog that was 3 months stale. Trimming it to 150 lines had zero measurable impact on Claude's output quality — but saved ~6,500 tokens per turn. The lesson: schedule periodic reviews of your instruction files. If a rule hasn't influenced Claude's behavior in the last 2 weeks, it probably does not need to be there.
 
 ### MEMORY.md pattern
 
@@ -59,6 +84,14 @@ Claude Code auto-manages a `MEMORY.md` file under `~/.claude/projects/<project-p
 
 **Index pattern:** Keep MEMORY.md as an index of pointers to individual memory files. Each file covers one topic. This keeps the per-turn load small while allowing deep storage.
 
+Early attempts at using MEMORY.md put everything in one file — project status, user preferences, feedback, references, career notes, system configuration. It grew to 300+ lines and was loaded every turn. Restructuring it as a pure index (one-line pointers to individual topic files) cut the per-turn load to ~50 lines while preserving all the stored knowledge. The individual files are only read when relevant — Claude sees the index entry "GPU freeze debugging notes" and only reads the full file when actually working on that problem. This is the difference between paying 3,000 tokens per turn unconditionally versus paying 500 tokens per turn plus 2,500 tokens only when needed.
+
+### PLAN.txt separation
+
+Planning documents — current approach, task breakdowns, error logs, what was tried and failed — should never go in CLAUDE.md. They change every session and would invalidate the cache prefix on every update. Instead, keep them in a PLAN.txt file that Claude reads on demand.
+
+One key rule: never commit PLAN.txt or CLAUDE.md to git. They are local working documents, not source code. PLAN.txt contains transient session state; CLAUDE.md contains instructions tuned to your local workflow. Both would be noise in the repository history and could leak information about your development process.
+
 ### Anti-patterns
 
 | Anti-pattern | Why it hurts | Fix |
@@ -67,6 +100,7 @@ Claude Code auto-manages a `MEMORY.md` file under `~/.claude/projects/<project-p
 | Including file trees that change often | Any change to the tree invalidates the cache prefix | Use glob patterns or key-file lists instead |
 | Session-specific state in CLAUDE.md | Stale across sessions, pollutes global instructions | Use PLAN files or session-local notes |
 | Duplicating rules across tiers | Wastes tokens, risks contradictions | Put each rule in exactly one tier |
+| Never pruning old rules | Instruction bloat with zero benefit | Review monthly, delete what the model follows by default |
 
 ---
 
@@ -98,6 +132,8 @@ Each subagent builds its own cache independently. There is no cache sharing betw
 - When you are near the rate limit (each subagent consumes from the same quota pool)
 - Short tasks that finish in one turn (paying cold start for a single response)
 
+The cold start overhead (~5,000-15,000 tokens for cache warmup) means subagents only pay off for tasks that take 5+ turns of work. A single file search or a targeted edit is always cheaper done directly in the parent session.
+
 ### Context passing
 
 Subagents read CLAUDE.md (paying the token cost per agent), but they do **not** inherit the parent session's conversation history. Effective patterns:
@@ -106,11 +142,15 @@ Subagents read CLAUDE.md (paying the token cost per agent), but they do **not** 
 - **PLAN files:** For complex multi-step tasks, write a plan to a file and have the subagent read it. This costs one `Read` call instead of stuffing context into the prompt.
 - **Scoped instructions:** If a subagent needs project-specific rules, those are already in CLAUDE.md. Don't repeat them in the prompt.
 
+In practice, early attempts at subagent dispatch launched agents with minimal context and expected them to "figure it out" from CLAUDE.md. This led to repeated work — subagents re-reading files the parent had already analyzed, or taking approaches the parent had already ruled out. The fix: write a brief working file with what has been tried and what specifically needs investigation, then have the subagent read it as its first action. This small investment (one file write, ~30 seconds) routinely saves 3-5 turns of wasted subagent work.
+
 ### Parallel dispatch
 
-Launching 3-5 agents simultaneously is efficient for exploration tasks. Each warms its own cache independently. The total cost is 3-5x the cold start overhead, but the wall-clock time savings usually justify it.
+For a project ecosystem spanning 14+ repositories, dispatching 5-8 parallel search agents across different repos is a common pattern. Each agent costs a cold start (~54-80% cache on first request), but the wall-clock speedup for cross-repo exploration is 3-5x compared to sequential searching.
 
-Be aware that all agents in a session draw from the same rate limit quota. Five parallel agents drain five times faster than sequential work.
+The key lesson: give each agent a specific, scoped question — "Find where rate limiting is configured in the API module" not "explore the codebase." Vague prompts lead to agents wandering through irrelevant files, burning tokens on exploration that produces nothing actionable.
+
+Be aware that all agents in a session draw from the same rate limit quota. Five parallel agents drain five times faster than sequential work. This is a deliberate tradeoff — you are spending quota to buy wall-clock time.
 
 ---
 
@@ -167,6 +207,8 @@ Key design choices:
 - `--no-fix` reports issues without modifying the file
 - `head -20` caps output to avoid flooding the context
 
+This hook went through 3 iterations before reaching its current form. The first version was just `ruff check $filepath` — it broke on non-Python files. The second added a `case *.py` filter — it broke on projects without ruff installed, failing with cryptic "command not found" errors that Claude tried to fix by installing ruff globally. The third added the venv tree-walk detection — it finds the nearest project's ruff binary automatically and handles multi-project setups cleanly. The final version took 10 minutes to develop but saves hours of catching lint errors late in a session.
+
 ### Example: Block dangerous commands
 
 ```json
@@ -189,6 +231,8 @@ Key design choices:
 ```
 
 This blocks `rm -rf /`, `DROP TABLE`, and force pushes to main. Adjust the regex to your risk tolerance.
+
+In practice, this hook caught 3 actual dangerous commands in the first month of use — all from Claude misinterpreting ambiguous instructions. One was a `DROP TABLE` generated when the prompt said "clean up the test data" (Claude interpreted "clean up" as "delete the table"). PreToolUse hooks are the seatbelt you do not think you need until you do.
 
 ### Global environment variables
 
@@ -268,6 +312,8 @@ Subagent sessions have separate JSONL files in the same directory. Their filenam
 
 ## 5. Multi-Project Workflow
 
+Running multiple projects simultaneously with Claude Code requires strict context hygiene. Without it, instructions leak between projects, stale context wastes tokens, and the model gets confused about which codebase it is working in.
+
 ### Context isolation
 
 Each project directory gets its own:
@@ -287,13 +333,15 @@ Project settings merge with (not replace) global settings. Hooks from both level
 
 ### Project switching
 
-- **Start a new session when switching projects.** Don't carry context from project A into project B — it wastes tokens and confuses the model.
-- **Each project should be self-contained.** Its CLAUDE.md should have enough context for Claude to work independently without needing the global file to explain project-specific conventions.
-- **Share standards, not details.** Global CLAUDE.md: "Use type hints in all Python functions." Project CLAUDE.md: "This project uses FastAPI with SQLAlchemy async, Python 3.12."
+The pattern that works across months of running 14+ projects daily: one terminal, one project, one session. When switching projects, close the session entirely. The 30 seconds to restart is cheaper than the confusion from leaked context.
+
+Cross-project pattern sharing works through the global CLAUDE.md tier. Security rules, git conventions, and language preferences go there once. Project-specific tech stack, conventions, and key paths go in the project CLAUDE.md. This avoids duplication while keeping each project self-contained.
+
+A common failure mode: editing Project A's CLAUDE.md while Claude is working on Project B. The change propagates on the next turn and can confuse the model — it suddenly sees instructions for a different tech stack injected into its system prompt. Keep instruction file edits separate from coding work.
 
 ### Git workflow across projects
 
-- **Don't auto-commit instruction files.** CLAUDE.md and PLAN files are local working documents. Commit them deliberately if you want them in the repo.
+- **Don't auto-commit instruction files.** CLAUDE.md and PLAN files are local working documents. Commit them deliberately if you want them in the repo — and think twice before doing so.
 - **Review diffs before committing.** Claude follows patterns it sees in `git log`, so maintaining clean commit history improves future commit quality.
 - **Separate concerns.** If Claude makes changes across multiple subsystems, consider splitting into focused commits rather than one large commit.
 
@@ -342,6 +390,12 @@ Extended thinking tokens are **not** included in `output_tokens` from the API re
 | Keep sessions lean | Less `cache_read` per turn | More frequent fresh starts |
 | Check reset times via proxy | Know when quota recovers | Requires proxy setup |
 | Fresh sessions over long ones | Avoid Bug 4/5 context degradation | Lose accumulated context |
+
+In practice, a typical productive day on a Max 20 plan uses 60-80% of the 5-hour window during peak work. Spreading heavy work (code generation, large refactors) across multiple 5h windows is more effective than cramming everything into one sprint. Knowing that quota refreshes at a specific time — visible through proxy-captured `5h-reset` headers — lets you schedule intensive work right after a reset and save lighter tasks (code review, documentation, planning) for the tail end of a window.
+
+### Organization-level quota pooling
+
+If you are on a team plan, watch for unexplained rate limits. Organization-level accounts share the quota pool — the rate limiting is keyed by `organizationUuid`, not by individual user. A teammate running heavy agent workloads can drain your available capacity without warning. This was initially mistaken for a personal-level bug before the `organizationUuid`-keyed cache was discovered in proxy analysis. If your usage bar jumps when you have not been working, check whether a colleague is running parallel sessions under the same org account.
 
 ### When you hit the limit
 
@@ -438,6 +492,16 @@ for k in ['tengu_slate_heron', 'tengu_session_memory', 'tengu_sm_compact',
 
 Cache ratio stays high throughout because microcompact substitutes the same marker consistently. But context **quality** degrades: the model can no longer see original tool results from earlier in the session.
 
+### Session startup ritual
+
+An effective session startup pattern, refined over months of daily use:
+
+1. **Read the error log** from the last session (if one exists). This prevents repeating known failures.
+2. **Read the current PLAN file.** This gives Claude the full picture of what has been tried, what worked, and what is next.
+3. **State the specific goal** for this session in the first message.
+
+This 3-step pattern prevents Claude from repeating past mistakes and gives it focused direction immediately. Sessions started this way are consistently more productive than "continue where we left off" approaches, which force Claude to infer the current state from stale context.
+
 ### When to start a new session
 
 - After completing a self-contained task (don't carry stale context forward)
@@ -445,6 +509,12 @@ Cache ratio stays high throughout because microcompact substitutes the same mark
 - When you've done 15-20+ file reads (Bug 5's 200K aggregate cap is likely active)
 - Before switching to a different project or subsystem
 - After hitting a rate limit (waiting for the 5h reset)
+
+### Recognizing a dying session
+
+The clearest signal that a session is past its useful life: Claude starts suggesting approaches you already tried earlier in the session, cannot quote specific lines from files it read 20+ turns ago, or gives increasingly generic advice where it was previously specific. These are symptoms of Bug 4/5 — the information is literally gone from its context, not "forgotten." The model is not getting worse; it is working with less data. No amount of prompting will recover information that has been silently truncated from tool results.
+
+When you see these signs, start a fresh session. Do not try to "remind" Claude by re-explaining — that just wastes tokens in a degraded context. A clean restart with a focused PLAN file gets better results in fewer turns.
 
 ### Compaction control
 
