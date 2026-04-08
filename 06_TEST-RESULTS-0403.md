@@ -2,9 +2,11 @@
 
 # Test Results — April 3, 2026
 
-> Consolidated test results from the integrated testing session.
+> Consolidated test results from the integrated testing session. Numbers in this document reflect the **April 3 focused test**.
 > Machine: ZBook Ultra G1a (Linux x86-64), Plan: Max 20 ($200/mo)
 > Proxy: cc-relay v2 (budget detection + session ID support)
+>
+> **Latest data (April 8):** Full-week proxy data shows significantly higher event counts — B4: 3,782 (vs 327 here), B5: 72,839 (vs 261 here), B8: 2.37x avg across 532 files (vs 2.87x single session here). See [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 

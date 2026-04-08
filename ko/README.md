@@ -4,7 +4,7 @@
 
 > **TL;DR:** Claude Code에는 **4개 계층에 걸친 6개의 확인된 클라이언트 측 버그(소프트웨어 결함)**가 있습니다. 이 버그들 때문에 사용량이 예상보다 훨씬 빠르게 소진됩니다. 캐시(이전에 처리한 내용을 재사용하는 기능) 관련 버그(1-2)는 v2.1.91에서 수정되었습니다. 나머지 4개는 미수정 (B3, B4, B5, B8)입니다. 또한, 프록시(중간에서 통신을 중계하는 서버)로 캡처한 rate limit(일정 기간 내 사용할 수 있는 양의 제한) 헤더 정보를 분석한 결과, **5시간/7일 이중 윈도우 쿼터(사용량 할당) 시스템**과 심각한 **thinking 토큰(AI의 내부 사고 과정에 소비되는 처리 단위) 사각지대**가 발견되었습니다 — 사용자에게 보이는 출력만으로는 실제 사용량의 절반도 설명하지 못합니다. 모든 발견 사항은 프록시 측정 데이터로 뒷받침됩니다.
 >
-> **최종 업데이트:** 2026년 4월 6일 — README 구조 개편, rate limit 헤더 분석 추가
+> **최종 업데이트:** 2026년 4월 8일 — 전체 주간 프록시 데이터 (17,610 요청), JSONL 대량 스캔 (532 파일), budget enforcement 72,839 이벤트, microcompact 3,782 이벤트
 
 ---
 
@@ -27,7 +27,26 @@
 
 ---
 
-## 최신 업데이트 (4월 6일)
+## 최신 업데이트 (4월 8일)
+
+### 전체 주간 프록시 데이터셋 — [13_PROXY-DATA.md](13_PROXY-DATA.md)
+
+cc-relay 프록시 데이터베이스가 **129개 세션**에 걸쳐 **17,610건의 요청** (4월 1-8일)을 축적하였으며, **532개 JSONL 파일** (158.3 MB)에 대한 자동화된 버그 탐지가 완료되었습니다:
+
+| 지표 | 이전 (4월 3일) | 현재 (4월 1-8일) | 변화 |
+|------|---------------|------------------|------|
+| Budget enforcement (B5) | 261 이벤트 | **72,839 이벤트** | 279x |
+| Microcompact (B4) | 327 이벤트 | **3,782 이벤트** (15,998 항목) | 12x |
+| B8 인플레이션 (대량 스캔) | 2.87x (1 세션) | **2.37x 평균** (10 세션, 최대 4.42x) | 전 세션 공통 |
+| 합성 rate limit (B3) | 24 항목 / 6일 | **183/532 파일** (34.4%) | 광범위 |
+| Context 증가율 | +575 tok/turn | **중앙값 1,845 tok/min** (53 세션) | 통계적 |
+
+**신규 발견:**
+- **요청 빈도:** 78개 세션에서 평균 2.72 req/min. 60분 이상 세션의 지속 최대치 8.04 req/min. 2-3분 초단기 세션은 평균 12+ req/min; 서브에이전트 팬아웃의 버스트 피크 86 req/60s.
+- **요청당 비용은 세션 길이에 비례:** 0-30분: $0.20/req → 5시간+: $0.33/req (구조적, 버전 무관)
+- **캐시 효율 안정:** v2.1.91에서 모든 세션 길이에 걸쳐 98-99% (버그 1-2 완전 수정)
+- **서브에이전트 격차:** Haiku 58.1% 캐시 vs Opus 98.8% — 40pp 격차 지속
+- **Microcompact 심화:** 10 메시지 미만: 1.6 항목/이벤트 → 200+ 메시지: 6.6 항목/이벤트
 
 ### Rate limit 헤더 분석 — [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)
 
@@ -57,7 +76,14 @@
 
 ---
 
-## 현재 상태 (2026년 4월 6일)
+## 현재 상태 (2026년 4월 8일)
+
+```mermaid
+pie title 버그 상태 (7개 확인)
+    "수정됨 (B1, B2)" : 2
+    "미수정 (B3, B4, B5, B8)" : 4
+    "설계상 의도 (서버)" : 1
+```
 
 캐시 문제(v2.1.89)는 v2.1.90-91에서 **수정**되었습니다. 하지만 4개의 추가 클라이언트 측(사용자 컴퓨터에서 작동하는 프로그램의) 버그(B3, B4, B5, B8)와 서버 측 쿼터 변경은 여전히 남아 있습니다.
 
@@ -66,9 +92,9 @@
 | **B1** Sentinel | standalone 바이너리가 캐시 작동에 필요한 식별 정보를 손상시킴 | 캐시 활용률이 4-17%로 하락 (v2.1.89) | **수정됨** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
 | **B2** Resume | `--resume`(이어쓰기) 명령이 이전 대화 전체를 캐시 없이 다시 전송 | 전체 캐시 미스 | **수정됨** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
 | **B3** False RL | 프로그램이 실제 서버 오류가 아닌데도 가짜 오류를 만들어 API 호출을 차단 | 갑자기 "Rate limit reached"(사용량 한도 도달) 메시지가 표시됨 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
-| **B4** Microcompact | 세션 중간에 도구 실행 결과가 조용히 삭제됨 | AI가 참고할 수 있는 정보의 품질이 저하됨 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
-| **B5** Budget cap | 도구 실행 결과에 200K(약 20만) 토큰 총량 제한이 적용됨 | 오래된 결과가 1-41자로 잘려나감 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
-| **B8** Log inflation | Extended thinking이 JSONL 로그에 중복 항목을 생성 | 로컬 토큰 수가 실제의 2.87배로 부풀려져 기록됨 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions) |
+| **B4** Microcompact | 세션 중간에 도구 실행 결과가 조용히 삭제됨 | 3,782 이벤트, 15,998 항목 삭제 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [13_PROXY-DATA.md](13_PROXY-DATA.md#8-microcompact-bug-4--full-data) |
+| **B5** Budget cap | 도구 실행 결과에 200K(약 20만) 토큰 총량 제한이 적용됨 | 72,839 이벤트, 100% 잘림 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [13_PROXY-DATA.md](13_PROXY-DATA.md#7-budget-enforcement-bug-5--full-data) |
+| **B8** Log inflation | Extended thinking이 JSONL 로그에 중복 항목을 생성 | 2.37x 평균 (최대 4.42x), 전 세션 공통 | **미수정** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions), [13_PROXY-DATA.md](13_PROXY-DATA.md#123-extended-thinking-inflation-b8--top-10-largest-sessions) |
 | **서버** | 쿼터 구조 변경 + thinking 토큰 사용량 산입 | 실질적으로 사용 가능한 양이 줄어듦 | **설계상 의도** | [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
 ### 할 수 있는 조치
@@ -79,7 +105,7 @@
 4. **주기적으로 새 세션을 시작하십시오** — 200K 도구 결과 상한(B5) 때문에 오래된 결과가 알림 없이 잘려나갑니다
 5. **`/dream`과 `/insights` 명령은 자제하십시오** — 사용자 모르게 백그라운드에서 API를 호출하여 사용량이 소진됩니다
 
-설정 가이드와 자가 진단 방법은 [09_QUICKSTART.md](09_QUICKSTART.md)를 참조하십시오.
+설정 가이드와 자가 진단 방법은 [09_QUICKSTART.md](09_QUICKSTART.md)를 참조하십시오. 전체 프록시 데이터셋: **[13_PROXY-DATA.md](13_PROXY-DATA.md)**.
 
 ---
 
@@ -160,7 +186,7 @@ Lydia Hallie는 Sonnet을 기본 모델로 사용하고, effort 레벨을 낮추
 
 | 파일 | 내용 | 날짜 |
 |------|------|------|
-| **[README.md](README.md)** | 이 파일 — 개요, 최신 업데이트, 현재 상태 | 4월 6일 |
+| **[README.md](README.md)** | 이 파일 — 개요, 최신 업데이트, 현재 상태 | 4월 8일 |
 | **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | 이중 5h/7d 윈도우 구조, 1%당 비용, thinking 토큰 사각지대 | 4월 6일 |
 | **[03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)** | 세션 로그 분석: 초기 토큰 부풀림, 하위 에이전트 비용, 수명주기 곡선, 프록시 교차 검증 | 4월 6일 |
 | **[01_BUGS.md](01_BUGS.md)** | 버그 1-5, 8 기술적 상세 + 측정 데이터 | 4월 3일 |
@@ -179,8 +205,8 @@ Lydia Hallie는 Sonnet을 기본 모델로 사용하고, effort 레벨을 낮추
 - **플랜:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
 - **테스트 버전:** v2.1.91, v2.1.90, v2.1.89, v2.1.68
-- **모니터링:** cc-relay v2 투명 프록시 (8,794건 요청, 3,702건 rate limit 헤더 포함)
-- **날짜:** 2026년 4월 6일
+- **모니터링:** cc-relay v2 투명 프록시 (17,610건 요청, 11,420건 rate limit 헤더 포함, 4월 8일 기준)
+- **날짜:** 2026년 4월 8일
 
 ---
 

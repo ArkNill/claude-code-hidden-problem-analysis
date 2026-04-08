@@ -4,8 +4,10 @@
 
 Two separate mechanisms silently modify your conversation before it reaches the API. Neither is controllable via environment variables, and both remain active on v2.1.91.
 
-- **Bug 4 (Microcompact):** Earlier tool results replaced with `[Old tool result content cleared]`. 327 events measured. Doesn't hurt cache (99%+ maintained) but destroys context quality.
-- **Bug 5 (Budget enforcement):** Tool results truncated after 200K aggregate chars. 261 events measured. Results reduced to 1-41 chars.
+- **Bug 4 (Microcompact):** Earlier tool results replaced with `[Old tool result content cleared]`. 327 events measured (April 3 focused test). Doesn't hurt cache (99%+ maintained) but destroys context quality.
+- **Bug 5 (Budget enforcement):** Tool results truncated after 200K aggregate chars. 261 events measured (April 3 focused test). Results reduced to 1-41 chars.
+
+> **Latest data (April 8):** Full-week proxy data shows B4: 3,782 events (15,998 items cleared), B5: 72,839 events (100% truncation rate). See [13_PROXY-DATA.md](13_PROXY-DATA.md) for the complete dataset.
 
 Both are controlled server-side via GrowthBook feature flags — Anthropic can change behavior without a client update. `/export` does NOT show the mutated version — it shows the full context, while the API receives the trimmed one.
 

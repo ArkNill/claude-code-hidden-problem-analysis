@@ -2,9 +2,9 @@
 
 # JSONL Session Log Analysis — First-Party Data
 
-> **Date:** April 6, 2026 — 110 main sessions + 279 subagent sessions (April 1-6), v2.1.91, Max 20x ($200/mo)
+> **Date:** April 8, 2026 — 110 main sessions + 279 subagent sessions (JSONL, April 1-6), v2.1.91, Max 20x ($200/mo)
 >
-> **Relationship to other documents:** [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) analyzes server-side rate limit headers from the proxy. This document analyzes client-side JSONL session logs (`~/.claude/projects/**/*.jsonl`). Section 6 cross-correlates both.
+> **Relationship to other documents:** [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) analyzes server-side rate limit headers from the proxy. This document analyzes client-side JSONL session logs (`~/.claude/projects/**/*.jsonl`). Section 6 cross-correlates JSONL with proxy data. Full proxy dataset and JSONL bulk scan: **[13_PROXY-DATA.md](13_PROXY-DATA.md)**.
 
 ---
 
@@ -13,13 +13,15 @@
 JSONL session logs are the client's record of every API interaction. Unlike the proxy (which sees HTTP response headers), JSONL captures per-turn token breakdowns including PRELIM/FINAL entries, synthetic rate limit events, and model identification.
 
 **Key findings:**
-- **Synthetic rate limiting (B3):** 24 confirmed `<synthetic>` entries across 6 days — client-generated fake rate limits
-- **PRELIM inflation (B8):** 5,551 PRELIM vs 6,825 FINAL entries (0.81x ratio overall, up to 1.14x on heavy days). PRELIM entries carry **0.56-0.97x** the cache_read of FINAL entries — not 1:1 but still substantial
-- **Subagent overhead:** 279 subagent sessions consumed 17.3% of total cache_read but 40.4% of total output. Cold start median: 13,358 cache_create tokens
-- **Session growth:** cache_read grows 24x over a 990-turn session (25K → 595K per turn, +575 linear)
+- **Synthetic rate limiting (B3):** 24 confirmed `<synthetic>` entries across 6 days (JSONL). At corpus scale: 183/532 files (34.4%) contain synthetic markers, 3,129 rate limit text occurrences across 257 files (48.3%). See [13_PROXY-DATA.md §12](13_PROXY-DATA.md#12-jsonl-bulk-scan-532-files-april-1-8)
+- **PRELIM inflation (B8):** 5,551 PRELIM vs 6,825 FINAL entries (0.81x ratio overall, up to 1.14x on heavy days). Bulk scan (532 files): average inflation 2.37x, worst case 4.42x. See [13_PROXY-DATA.md §12.3](13_PROXY-DATA.md#123-extended-thinking-inflation-b8--top-10-largest-sessions)
+- **Subagent overhead:** 279 subagent sessions consumed 17.3% of total cache_read but 40.4% of total output. Cold start median: 13,358 cache_create tokens. Proxy confirms: 3,788 haiku requests at 58.1% cache vs 11,985 opus at 98.8%
+- **Session growth:** cache_read grows 24x over a 990-turn session (25K → 595K per turn, +575 linear). Proxy (53 sessions): **median 1,845 tok/min** (P25: 801, P75: 3,581). See [13_PROXY-DATA.md §3](13_PROXY-DATA.md#3-context-growth-rate-53-opus-sessions-20-requests-10-min)
 - **Session cost range:** 753x variation (447K → 336M visible tokens) between cheapest and most expensive sessions
 - **Time-normalized cost:** median 153K cache_read/minute, mean 227K/minute
 - **Cross-correlation with proxy:** JSONL records **1.93x** the cache_read tokens that the proxy sees — directly confirming PRELIM double-counting inflates local accounting by ~2x
+- **Budget enforcement (proxy):** 72,839 events across 20 sessions — 100% truncation rate, 90.6% to 11-100 chars. See [13_PROXY-DATA.md §7](13_PROXY-DATA.md#7-budget-enforcement-bug-5--full-data)
+- **Microcompact (proxy):** 3,782 events, 15,998 items cleared. Scales with message count: 1.6 cleared at <10 msgs → 6.6 at 200+. See [13_PROXY-DATA.md §8](13_PROXY-DATA.md#8-microcompact-bug-4--full-data)
 
 ---
 
@@ -165,6 +167,18 @@ This is relevant to community analyses (e.g., @fgrosswig's comparison of March 3
 
 ## 4. Main Sessions vs Subagents
 
+```mermaid
+pie title Token Share: Main vs Subagent
+    "Main Cache Read (83%)" : 1607617725
+    "Subagent Cache Read (17%)" : 335964567
+```
+
+```mermaid
+pie title Cache Create Share
+    "Main (38%)" : 50302333
+    "Subagent (62%)" : 82034105
+```
+
 | Metric | Main Sessions | Subagents | Subagent Share |
 |--------|--------------|-----------|----------------|
 | Files | 110 | 279 | — |
@@ -210,6 +224,14 @@ After 3+ turns, subagent cache_read settles to a **median 92.3%** — lower than
 ---
 
 ## 5. Session Lifecycle — Cache Growth Curve
+
+```mermaid
+xychart-beta
+    title "Cache Read Growth (session 03480ffe, 990 turns)"
+    x-axis ["1","10","50","100","200","281","301","500","700","990"]
+    y-axis "Cache Read (K tokens)" 0 --> 600
+    line [25,34,64,145,204,8,257,347,439,595]
+```
 
 Analysis of the longest session (03480ffe, 990 entries, 336M visible tokens):
 
@@ -416,4 +438,4 @@ Rate limit headers captured via cc-relay proxy. Each row = one clock hour (KST).
 
 ---
 
-*Environment: Max 20x ($200/mo), Opus 4.6 1M, v2.1.91, Linux (ZBook Ultra), single machine. 1,735 JSONL files, 1.0 GB total. Proxy: 8,794 requests, 3,702 with rate limit headers.*
+*Environment: Max 20x ($200/mo), Opus 4.6 1M, v2.1.91, Linux (ZBook Ultra), single machine. 1,735 JSONL files, 1.0 GB total. Proxy cross-correlation subset: 8,794 requests, 3,702 with rate limit headers (April 4-6). Full proxy dataset (17,610 requests, April 1-8) and JSONL bulk scan (532 files): [13_PROXY-DATA.md](13_PROXY-DATA.md).*

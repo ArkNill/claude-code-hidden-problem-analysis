@@ -4,11 +4,30 @@
 
 > **TL;DR:** Claude Code has **6 confirmed client-side bugs across 4 layers** that drain usage faster than expected. Cache bugs (B1-B2) are fixed in v2.1.91. Four remain unfixed (B3, B4, B5, B8). Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot** — visible output explains less than half the observed utilization. All findings are backed by proxy-measured data.
 >
-> **Last updated:** April 6, 2026 — README restructured, rate limit header analysis added
+> **Last updated:** April 8, 2026 — Full-week proxy data (17,610 requests), JSONL bulk scan (532 files), budget enforcement 72,839 events, microcompact 3,782 events
 
 ---
 
-## Latest Update (April 6)
+## Latest Update (April 8)
+
+### Full-week proxy dataset — [13_PROXY-DATA.md](13_PROXY-DATA.md)
+
+cc-relay proxy database now covers **17,610 requests** across **129 sessions** (April 1-8), with automated bug detection across **532 JSONL files** (158.3 MB):
+
+| Metric | Previous (Apr 3) | Current (Apr 1-8) | Change |
+|--------|------------------|--------------------|--------|
+| Budget enforcement (B5) | 261 events | **72,839 events** | 279x |
+| Microcompact (B4) | 327 events | **3,782 events** (15,998 items) | 12x |
+| B8 inflation (bulk scan) | 2.87x (1 session) | **2.37x avg** (10 sessions, max 4.42x) | Universal |
+| Synthetic rate limit (B3) | 24 entries / 6 days | **183/532 files** (34.4%) | Pervasive |
+| Context growth rate | +575 tok/turn | **median 1,845 tok/min** (53 sessions) | Statistical |
+
+**New findings:**
+- **Request rate:** Mean 2.72 req/min across 78 sessions. Sustained max 8.04 req/min (60+ min sessions). Two very short sessions (2-3 min) averaged 12+ req/min; burst peak 86 req/60s from subagent fan-out.
+- **Per-request cost scales with session length:** 0-30min: $0.20/req → 5hr+: $0.33/req (structural, not version-specific)
+- **Cache efficiency stable:** 98-99% across all session lengths on v2.1.91 (Bugs 1-2 fully fixed)
+- **Subagent gap:** Haiku 58.1% cache vs Opus 98.8% — 40pp gap persists
+- **Microcompact intensifies:** 1.6 items/event at <10 messages → 6.6 items/event at 200+ messages
 
 ### Rate limit header analysis — [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)
 
@@ -38,7 +57,14 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ---
 
-## Current Status (April 6, 2026)
+## Current Status (April 8, 2026)
+
+```mermaid
+pie title Bug Status (7 identified)
+    "Fixed (B1, B2)" : 2
+    "Unfixed (B3, B4, B5, B8)" : 4
+    "By Design (Server)" : 1
+```
 
 Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Four additional client-side bugs and server-side quota changes remain active:
 
@@ -47,9 +73,9 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Four additional client-si
 | **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
 | **B2** Resume | `--resume` replays full context uncached | Full cache miss per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
 | **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
-| **B4** Microcompact | Tool results silently cleared mid-session | Context quality degrades | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
-| **B5** Budget cap | 200K aggregate limit on tool results | Older results truncated to 1-41 chars | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [05_MICROCOMPACT.md](05_MICROCOMPACT.md) |
-| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.87x local token inflation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions) |
+| **B4** Microcompact | Tool results silently cleared mid-session | 3,782 events, 15,998 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [13_PROXY-DATA.md](13_PROXY-DATA.md#8-microcompact-bug-4--full-data) |
+| **B5** Budget cap | 200K aggregate limit on tool results | 72,839 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [13_PROXY-DATA.md](13_PROXY-DATA.md#7-budget-enforcement-bug-5--full-data) |
+| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.37x avg (max 4.42x), universal | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions), [13_PROXY-DATA.md](13_PROXY-DATA.md#123-extended-thinking-inflation-b8--top-10-largest-sessions) |
 | **Server** | Quota architecture + thinking token accounting | Reduced effective capacity | **By design** | [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
 ### What You Can Do
@@ -60,7 +86,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Four additional client-si
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
 5. **Avoid `/dream` and `/insights`** — background API calls that drain silently
 
-See [09_QUICKSTART.md](09_QUICKSTART.md) for setup guide and self-diagnosis.
+See [09_QUICKSTART.md](09_QUICKSTART.md) for setup guide and self-diagnosis. Full proxy dataset: **[13_PROXY-DATA.md](13_PROXY-DATA.md)**.
 
 ---
 
@@ -160,8 +186,8 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
 - **Versions tested:** v2.1.91, v2.1.90, v2.1.89, v2.1.68
-- **Monitoring:** cc-relay v2 transparent proxy (8,794 requests, 3,702 with rate limit headers)
-- **Date:** April 6, 2026
+- **Monitoring:** cc-relay v2 transparent proxy (17,610 requests, 11,420 with rate limit headers as of April 8)
+- **Date:** April 8, 2026
 
 ---
 

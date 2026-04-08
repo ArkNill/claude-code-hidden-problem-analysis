@@ -1,7 +1,7 @@
 ---
 title: "Claude Code's Thinking Tokens Count Against Your Quota — But You Can't See Them"
 published: false
-description: Proxy data from 8,794 API requests reveals that visible output explains less than half of Claude Code's quota consumption. Extended thinking tokens appear to be the missing cost — invisible to users, impossible to monitor.
+description: Proxy data from 17,610 API requests reveals that visible output explains less than half of Claude Code's quota consumption. Extended thinking tokens appear to be the missing cost — invisible to users, impossible to monitor.
 tags: claudecode, ai, debugging, opensource
 ---
 
@@ -21,7 +21,7 @@ Instead of filing another "me too" issue, I built a transparent monitoring proxy
 
 [cc-relay](https://github.com/ArkNill/claude-code-hidden-problem-analysis) sits between Claude Code and the Anthropic API using the official `ANTHROPIC_BASE_URL` environment variable. It logs every request and response — including `anthropic-ratelimit-unified-*` headers — without modifying anything.
 
-Over 6 days: **8,794 requests** logged, **3,702** with rate limit headers captured. Source-audited, reproducible.
+Over a full week: **17,610 requests** logged, **3,702** with rate limit headers captured. Source-audited, reproducible.
 
 ## The Numbers
 
@@ -66,10 +66,10 @@ The thinking token blind spot isn't the only problem. The investigation uncovere
 
 | Bug | What | Impact |
 |-----|------|--------|
-| **Microcompact** | Server silently strips old tool results | 327 clearing events measured. Model loses earlier context ([#42542](https://github.com/anthropics/claude-code/issues/42542)) |
-| **Budget cap** | 200K char aggregate cap on tool results | After ~15-20 file reads, older results truncated to 1-41 chars. 261 events in one session |
+| **Microcompact** | Server silently strips old tool results | 3,782 clearing events (15,998 items cleared) measured. Model loses earlier context ([#42542](https://github.com/anthropics/claude-code/issues/42542)) |
+| **Budget cap** | 200K char aggregate cap on tool results | After ~15-20 file reads, older results truncated to 1-41 chars. 72,839 budget events (100% truncation rate) |
 | **False rate limiter** | Client generates fake "Rate limit reached" | 151 synthetic errors across 65 sessions — zero API calls made ([#40584](https://github.com/anthropics/claude-code/issues/40584)) |
-| **JSONL inflation** | Extended thinking duplicates log entries | 2.87x token inflation in local accounting ([#41346](https://github.com/anthropics/claude-code/issues/41346)) |
+| **JSONL inflation** | Extended thinking duplicates log entries | 2.37x average token inflation (range 1.45x-4.42x, universal across 532 files) in local accounting ([#41346](https://github.com/anthropics/claude-code/issues/41346)) |
 
 The microcompact and budget cap are particularly insidious: they're controlled by **server-side GrowthBook A/B testing flags**. Anthropic can change behavior without shipping a client update, and no environment variable overrides them. Users paying for 1M context effectively get a 200K tool result budget for built-in tools.
 
@@ -81,7 +81,7 @@ On April 2, Lydia Hallie (Anthropic, Product) [posted on X](https://x.com/lydiah
 
 Where our data diverges:
 
-- **"None were over-charging you"** — Bug 5 truncates tool results to 1-41 chars after 200K. 261 events measured. Users paying for 1M context don't get 1M of tool results.
+- **"None were over-charging you"** — Bug 5 truncates tool results to 1-41 chars after 200K. 72,839 budget events measured (100% truncation rate). Users paying for 1M context don't get 1M of tool results.
 - **"Peak-hour limits are tighter"** — Proxy shows `representative-claim` = `five_hour` in 100% of 3,702 requests, regardless of time of day. Weekend data shows the same pattern.
 - **Thinking tokens** — Not addressed. The dominant cost factor is invisible to users, with no way to monitor or control it.
 
@@ -122,7 +122,7 @@ This analysis builds on work from 17 community members who independently discove
 
 **[github.com/ArkNill/claude-code-hidden-problem-analysis](https://github.com/ArkNill/claude-code-hidden-problem-analysis)**
 
-11 documents: bug technical details, proxy-captured rate limit headers, JSONL forensics, benchmarks, 14-month timeline of 91+ issues, and community tools. 26 commits, all data cross-verified.
+11 documents: bug technical details, proxy-captured rate limit headers, JSONL forensics, benchmarks, 14-month timeline of 91+ issues, and community tools. April 8 full-week dataset, all data cross-verified.
 
 ---
 

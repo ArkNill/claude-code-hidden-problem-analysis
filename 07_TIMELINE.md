@@ -3,7 +3,9 @@
 # Claude Code Rate Limit Crisis — Full Timeline
 
 > 14-month chronicle of rate limit / token consumption issues in Claude Code.
-> Data collected from GitHub Issues via API on 2026-04-02.
+> Data collected from GitHub Issues via API on 2026-04-02. Event counts reference their discovery-date baselines.
+>
+> **Latest data (April 8):** Full-week proxy dataset (17,610 requests, 129 sessions) with updated event counts in [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 

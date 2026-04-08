@@ -13,9 +13,9 @@
 - [#34629](https://github.com/anthropics/claude-code/issues/34629) — Resume cache regression (Bug 2: deferred_tools_delta) — **improved in v2.1.90-91**
 - [#40652](https://github.com/anthropics/claude-code/issues/40652) — cch= billing hash substitution
 - [#40584](https://github.com/anthropics/claude-code/issues/40584) — **Client-side false rate limiter** (Bug 3: 151 `<synthetic>` entries across 65 session files (all-time; 24 entries in the April 1-6 analysis window — see [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md))) — **unfixed**
-- [#42542](https://github.com/anthropics/claude-code/issues/42542) — **Silent microcompact → context degradation** (Bug 4: 327 events, cache unaffected) — **unfixed**
-- Bug 5: **Tool result budget enforcement** (200K aggregate cap, discovered via GrowthBook flags) — **unfixed** (v2.1.91 MCP override only)
-- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL log duplication** (Bug 8: 2.87x token inflation in one measured session (1.93x average across all sessions — see [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md))) — **unfixed**
+- [#42542](https://github.com/anthropics/claude-code/issues/42542) — **Silent microcompact → context degradation** (Bug 4: 3,782 events, 15,998 items cleared — see [13_PROXY-DATA.md](13_PROXY-DATA.md)) — **unfixed**
+- Bug 5: **Tool result budget enforcement** (200K aggregate cap, 72,839 events, 100% truncation — see [13_PROXY-DATA.md](13_PROXY-DATA.md)) — **unfixed** (v2.1.91 MCP override only)
+- [#41346](https://github.com/anthropics/claude-code/issues/41346) — **JSONL log duplication** (Bug 8: 2.37x avg inflation across 532 files, max 4.42x — see [13_PROXY-DATA.md](13_PROXY-DATA.md)) — **unfixed**
 
 ### Server-Side Billing Bugs
 - [#42616](https://github.com/anthropics/claude-code/issues/42616) — Spurious 429 "Extra usage required" at 23K tokens on Max plan with 1M context

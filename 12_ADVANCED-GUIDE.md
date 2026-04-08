@@ -112,7 +112,7 @@ Claude Code can spawn independent AI instances ("subagents") to handle subtasks 
 
 | Phase | Cache ratio | Note |
 |-------|------------|------|
-| Cold start (1st request) | 54-80% | Full cache build — expensive |
+| Cold start (1st request) | 54-87% | Full cache build — expensive (varies by version/model) |
 | Warming (requests 2-5) | 80-94% | Gradually improves |
 | Steady state (5+ requests) | 94-99% | Normal operating cost |
 
@@ -146,7 +146,7 @@ In practice, early attempts at subagent dispatch launched agents with minimal co
 
 ### Parallel dispatch
 
-For a project ecosystem spanning 14+ repositories, dispatching 5-8 parallel search agents across different repos is a common pattern. Each agent costs a cold start (~54-80% cache on first request), but the wall-clock speedup for cross-repo exploration is 3-5x compared to sequential searching.
+For a project ecosystem spanning 14+ repositories, dispatching 5-8 parallel search agents across different repos is a common pattern. Each agent costs a cold start (~54-87% cache on first request), but the wall-clock speedup for cross-repo exploration is 3-5x compared to sequential searching.
 
 The key lesson: give each agent a specific, scoped question — "Find where rate limiting is configured in the API module" not "explore the codebase." Vague prompts lead to agents wandering through irrelevant files, burning tokens on exploration that produces nothing actionable.
 
@@ -485,7 +485,7 @@ for k in ['tengu_slate_heron', 'tengu_session_memory', 'tengu_sm_compact',
 
 | Phase | Typical length | Cache ratio | Context quality |
 |-------|---------------|------------|----------------|
-| Cold start | 1-3 turns | 54-80% | Full (nothing cleared) |
+| Cold start | 1-3 turns | 27-85% | Full (nothing cleared) |
 | Warm | 4-50 turns | 94-99% | Full |
 | Mature | 50-150 turns | 96-99% | Degrading (Bug 4/5 active) |
 | Late | 150+ turns | 96-99% | Significantly degraded |

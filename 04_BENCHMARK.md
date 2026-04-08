@@ -222,7 +222,7 @@ Both installations are identical v2.1.90, yet sub-agent context initialization s
 
 | Metric | v2.1.89 Standalone | v2.1.90 Standalone | v2.1.90 npm |
 |--------|-------------------|-------------------|-------------|
-| Sub-agent cold start | **4-34%** | **14-47%** | **63-87%** |
+| Sub-agent cold start | **4-34%** | **14-47%** | **79-87%** |
 | Sub-agent warmed | N/A (never recovered) | **94-99%** | **87-94%** |
 | Stable session | 90-99% | **95-99.7%** | 95-99.8% |
 | Overall efficiency | Poor — rapid drain | **Good** | **Optimal** |
@@ -442,7 +442,7 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 | Overall cache | 86.4% | 86.2% | **88.4%** | **84.1%** |
 | Cold start | 63.5-80% | **14.6-47.2%** | **84.5%** | **27.8%** |
 | Cold start recovery | 3-5 reqs to 95%+ | 3-5 reqs to 94-99% | 2 reqs to 98%+ | **1 req to 99.3%** |
-| Sub-agent cold | 54-80% | 14-47% | **54.1%** | **0%** (full rebuild) |
+| Sub-agent cold | 79-87% | 14-47% | **54.1%** | **0%** (full rebuild) |
 | Sub-agent stable | 87-94% | 94-99% | **93-99%** | **91-99%** |
 | Stable session | 95-99.8% | 95-99.7% | **98-99.6%** | **94-99%** |
 

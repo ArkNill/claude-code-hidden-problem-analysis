@@ -75,7 +75,7 @@ Three compaction mechanisms in `src/services/compact/` run **silently on every A
 - All three bypass `DISABLE_AUTO_COMPACT` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`
 - Controlled by **server-side GrowthBook A/B testing flags** — Anthropic can change behavior without a client update
 - Tool results silently replaced with `[Old tool result content cleared]` — no compaction notification shown
-- **327 clearing events across all tested sessions** detected via proxy across multiple sessions
+- **3,782 clearing events** (15,998 items cleared) detected via proxy (April 1-8 snapshot). Bug discovered April 2; proxy started April 1. Previously 327 (April 3 focused test only)
 - All cleared indices are **even-numbered** → targets tool_use/tool_result pairs specifically
 - Cleared indices **expand over time** as conversation grows
 
@@ -112,8 +112,9 @@ tengu_summarize_tool_results: true    (system prompt tells model to expect clear
 ```
 
 **Measured impact:**
-- **261 budget events** detected in a single session when total tool result chars exceeded 200K
-- Tool results reduced to **1-41 characters** (from original thousands+)
+- **72,839 budget events** across 20 sessions (April 1-8 snapshot). Previously 261 in a single session (April 3)
+- **100% truncation rate** — every event results in content reduction
+- **90.6% of events** truncate to 11-100 chars; 9.4% to 0-10 chars (average: 24 chars)
 - Budget threshold exceeded at **242,094 chars** (> 200K cap)
 - After ~15-20 file reads, older results are silently truncated
 
@@ -133,7 +134,7 @@ tengu_summarize_tool_results: true    (system prompt tells model to expect clear
 
 Extended thinking generates **2-5 PRELIM entries** per API call in session JSONL files, with identical `cache_read_input_tokens` and `cache_creation_input_tokens` as the FINAL entry. This inflates local token accounting.
 
-**Measured (April 3):**
+**Measured (April 3, single session):**
 
 | Session Type | PRELIM | FINAL | Ratio | Token Inflation |
 |-------------|--------|-------|-------|----------------|
@@ -142,7 +143,23 @@ Extended thinking generates **2-5 PRELIM entries** per API call in session JSONL
 | Sub-agent | 12 | 7 | 1.71x | — |
 | Previous session | 16 | 6 | **2.67x** | — |
 
+**Bulk scan (April 8, 532 files):** B8 is **universal** — 100% of top 10 largest sessions exhibit PRELIM/FINAL duplication. Average token inflation: **2.37x** (range 1.45x-4.42x). Worst case: 734f00e7 at 4.42x (77% of logged input tokens are duplicated PRELIM entries).
+
 **Open question:** Does the server-side rate limiter count PRELIM entries? If yes, extended thinking sessions are charged 2-3x more against the rate limit than the actual API usage.
+
+---
+
+## Bug Scale Overview (April 1-8)
+
+```mermaid
+xychart-beta
+    title "Detected Events by Bug Type (Apr 1-8, log scale approximation)"
+    x-axis ["B3 Synthetic RL","B4 Microcompact","B5 Budget Cap","B8 PRELIM Inflation"]
+    y-axis "Events" 0 --> 75000
+    bar [3129,3782,72839,532]
+```
+
+> B3: 3,129 rate limit text occurrences across 257/532 files. B4: 3,782 clearing events (15,998 items). B5: 72,839 truncation events (100% rate). B8: universal across all 532 analyzed files (2.37x avg inflation). Full data: [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 
@@ -179,7 +196,7 @@ Full per-request data and warming curves: **[04_BENCHMARK.md](04_BENCHMARK.md)**
 |--------|-------------------|------------|-------------------|------------|-------------------|
 | Cold start | **4-17%** | 63-80% | **14-47%** | **84.5%** | **27.8%** |
 | Recovery to 95%+ | Never | 3-5 reqs | 3-5 reqs | **2 reqs** | **1 req** |
-| Sub-agent cold | — | 54-80% | 14-47% | **54%** | **0%** |
+| Sub-agent cold | — | 79-87% | 14-47% | **54%** | **0%** |
 | Sub-agent stable | — | 87-94% | 94-99% | **93-99%** | **91-99%** |
 | Stable session | 90-99% | **95-99.8%** | **95-99.7%** | **98-99.6%** | **94-99%** |
 | Overall | ~20% | 86.4% | 86.2% | **88.4%** | **84.1%** |

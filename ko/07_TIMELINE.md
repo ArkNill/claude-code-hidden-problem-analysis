@@ -3,7 +3,9 @@
 # Claude Code Rate Limit 위기 — 전체 타임라인
 
 > Claude Code의 rate limit(사용량 제한) / token(AI가 처리하는 텍스트 단위) 소비 문제에 대한 14개월간의 사건 기록입니다.
-> 2026-04-02에 GitHub Issues API를 통해 데이터를 수집했습니다.
+> 2026-04-02에 GitHub Issues API를 통해 데이터를 수집했습니다. 각 이벤트 수는 발견 시점 기준입니다.
+>
+> **최신 데이터 (4월 8일):** 1주일간의 프록시 데이터셋 (17,610건 요청, 129개 세션)과 업데이트된 이벤트 수는 [13_PROXY-DATA.md](../13_PROXY-DATA.md)를 참조하십시오.
 
 ---
 

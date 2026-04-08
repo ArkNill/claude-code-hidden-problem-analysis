@@ -2,7 +2,7 @@
 
 # Investigation Log — Daily Progress
 
-> Date-by-date record of what was investigated, discovered, and published. Each entry documents the day's focus, methodology, and findings.
+> Date-by-date record of what was investigated, discovered, and published. Each entry documents the day's focus, methodology, and findings. Event counts in each entry reflect that day's data — for cumulative totals, see [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 
