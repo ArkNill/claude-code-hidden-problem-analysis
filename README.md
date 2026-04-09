@@ -1,10 +1,10 @@
-> **🇰🇷 [한국어 버전](ko/README.md)**
+> **🇰🇷 [한국어 버전](ko/README.md)** | **🔧 [Quick fix guide →](09_QUICKSTART.md)** — skip the analysis, just fix it
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. Nine remain unfixed. Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot**. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN. All findings are backed by proxy-measured data and community fact-checking.
+> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.97** (latest). Six releases (v2.1.92–97) shipped zero fixes for token accounting, context mutation, or log integrity bugs. Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot**. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
 >
-> **Last updated:** April 9, 2026 — 9 new findings (5 STRONG, 4 MODERATE) from community-wide fact-check of 500+ issues filed April 6-9. Anthropic response bias correction. See [08_UPDATE-LOG.md](08_UPDATE-LOG.md) for details.
+> **Last updated:** April 9, 2026 — Changelog cross-reference (v2.1.92–97) confirms no unfixed bug was addressed across 6 releases. See [01_BUGS.md — Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
 
 ---
 
@@ -57,16 +57,16 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ---
 
-## Current Status (April 9, 2026)
+## Current Status (April 9, 2026 — verified through v2.1.97)
 
 ```mermaid
-pie title Bug Status (12 identified)
+pie title Bug Status (12 identified, verified through v2.1.97)
     "Fixed (B1, B2)" : 2
     "Unfixed (B3-B5, B8-B11, B2a, B8a)" : 9
     "By Design (Server)" : 1
 ```
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Nine client-side bugs and server-side quota changes remain active:
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Nine client-side bugs remain unfixed through v2.1.97** (latest, 6 releases later). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197).
 
 | Bug | What It Does | Impact | Status | Details |
 |-----|-------------|--------|--------|---------|
@@ -85,7 +85,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Nine client-side bugs and
 
 ### What You Can Do
 
-1. **Update to v2.1.91** — fixes the cache regression (worst drain)
+1. **Update to v2.1.91+** — fixes the cache regression (worst drain). v2.1.92–97 add no bug fixes for issues tracked here but are safe to use
 2. **npm or standalone — both fine on v2.1.91** (Sentinel gap closed)
 3. **Don't use `--resume` or `--continue`** — replays full context as billable input
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
@@ -103,9 +103,7 @@ Even with cache at 95-99%, drain persists. At least four server-side issues cont
 
 **2. 1M context billing regression:** A late-March regression causes the server to incorrectly classify Max plan 1M context requests as "extra usage." Debug logs show a 429 error at only ~23K tokens ([#42616](https://github.com/anthropics/claude-code/issues/42616)).
 
-**3. Dual-window quota architecture (April 6):** 5h + 7d independent windows. Each 1% of 5h costs ~1.5M-2.1M visible tokens (96-99% cache_read). See [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md).
-
-**3a. Thinking token blind spot (April 6):** Visible output is only 9K-16K per 1% — consistent with thinking tokens being counted against the quota but invisible to clients. Community reports by [@Commandershadow9](https://github.com/Commandershadow9) and [@fgrosswig](https://github.com/fgrosswig) independently reached the same conclusion through JSONL analysis. See [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md).
+**3. Dual-window quota + thinking token blind spot:** 5h + 7d independent windows. Visible output only 9K-16K per 1% — the gap is likely thinking tokens counted against quota but invisible to clients. Full analysis: [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md).
 
 **4. Org-level quota sharing:** Accounts under the same organization share rate limit pools. `passesEligibilityCache` and `overageCreditGrantCache` are keyed by `organizationUuid`, not `accountUuid`. Originally discovered by [@dancinlife](https://github.com/dancinlife) through client-side analysis of the obfuscated JavaScript bundle.
 
@@ -113,13 +111,7 @@ Even with cache at 95-99%, drain persists. At least four server-side issues cont
 
 ## Usage Precautions
 
-| Behavior | Why | Recommendation |
-|----------|-----|----------------|
-| `--resume` / `--continue` | Replays entire history as billable input | **Avoid** — start fresh |
-| `/dream`, `/insights` | Background API calls, silent drain | **Avoid** |
-| Multiple terminals | No cache sharing, parallel drain | **Limit to one** |
-| Large CLAUDE.md / context files | Sent every turn, scales with cache_read | **Keep lean** |
-| v2.1.89 or earlier standalone | Sentinel bug, sustained 4-17% cache | **Update to v2.1.91** |
+See **[09_QUICKSTART.md](09_QUICKSTART.md)** for the full list of behaviors to avoid and adopt, including `/branch`, `/release-notes`, and environment variable recommendations.
 
 ---
 
@@ -160,7 +152,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 - **"Peak-hour limits are tighter"** — Our April 6 proxy data shows the bottleneck is always the 5h window (`representative-claim` = `five_hour` in 100% of 3,702 requests), regardless of time of day. Weekend and off-peak data shows the same pattern.
 - **Thinking token accounting** — Extended thinking tokens don't appear in `output_tokens` from the API, yet visible output alone explains less than half the observed utilization cost. If thinking tokens are counted against quota at output-token rate, this is a significant invisible cost that users have no way to monitor or control.
 
-**GitHub response:** Zero across 91+ rate-limit issues (2+ months of silence). All official communication has been via personal X posts and the changelog. See [10_ISSUES.md](10_ISSUES.md#anthropic-official-response) for full statement history.
+**GitHub response:** bcherny posted 6 comments on [#42796](https://github.com/anthropics/claude-code/issues/42796) (April 6 only, triggered by HN virality), then went silent. Zero responses on all other 90+ issues including #38335 (478 comments, 15 days). See [10_ISSUES.md](10_ISSUES.md#anthropic-official-response) for full history.
 
 ### Cache TTL (not a bug)
 
@@ -170,19 +162,19 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 ## Documents
 
-| File | What | Date |
-|------|------|------|
-| **[README.md](README.md)** | This file — overview, latest updates, current status | Apr 6 |
+| File | What | Updated |
+|------|------|---------|
+| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 4 preliminary (P1-P4) + changelog cross-reference (v2.1.92-97) | Apr 9 |
+| **[09_QUICKSTART.md](09_QUICKSTART.md)** | Quick fix guide — Option A (v2.1.91+) vs Option B (v2.1.63 downgrade), npm vs standalone, diagnosis | Apr 9 |
+| **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle (Phase 1-9) + April 6-9 community acceleration + Anthropic response | Apr 9 |
+| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | Apr 9 |
+| **[10_ISSUES.md](10_ISSUES.md)** | 91+ tracked issues + community tools + contributors | Apr 9 |
+| **[13_PROXY-DATA.md](13_PROXY-DATA.md)** | Full-week proxy dataset (17,610 requests, 129 sessions) with Mermaid visualizations | Apr 8 |
 | **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot | Apr 6 |
 | **[03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
-| **[01_BUGS.md](01_BUGS.md)** | Bug 1-5, 8 technical details + measured data | Apr 3 |
 | **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 3 |
 | **[04_BENCHMARK.md](04_BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
 | **[06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md)** | April 3 integrated test results — all bugs verified | Apr 3 |
-| **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle of rate limit issues (Phase 1-9) | Apr 6 |
-| **[09_QUICKSTART.md](09_QUICKSTART.md)** | Setup guide + self-diagnosis | Apr 3 |
-| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log — what was found, when, how | Apr 1-6 |
-| **[10_ISSUES.md](10_ISSUES.md)** | 91+ related issues + community tools + contributors | Apr 6 |
 | **[11_USAGE-GUIDE.md](11_USAGE-GUIDE.md)** | Essential usage guide — sessions, context, CLAUDE.md, token-saving | Apr 8 |
 | **[12_ADVANCED-GUIDE.md](12_ADVANCED-GUIDE.md)** | Power user guide — hooks, subagents, monitoring, rate limit tactics | Apr 8 |
 
@@ -190,34 +182,35 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
-- **Versions tested:** v2.1.91, v2.1.90, v2.1.89, v2.1.68
+- **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.97**
 - **Monitoring:** cc-relay v2 transparent proxy (17,610 requests, 11,420 with rate limit headers as of April 8)
-- **Date:** April 8, 2026
+- **Date:** April 9, 2026
 
 ---
 
 ## Contributors
 
-This analysis builds on work by many community members. Full details in [10_ISSUES.md](10_ISSUES.md#contributors--acknowledgments).
+This analysis builds on work by many community members who independently investigated and measured these issues. Full details in [10_ISSUES.md](10_ISSUES.md#contributors--acknowledgments).
 
 | Who | Key Contribution |
 |-----|-----------------|
-| [@Sn3th](https://github.com/Sn3th) | Discovered microcompact mechanisms (Bug 4), GrowthBook flags, budget pipeline (Bug 5), confirmed server-side context mutation across multiple machines |
-| [@rwp65](https://github.com/rwp65) | Discovered client-side false rate limiter (Bug 3) with detailed log evidence |
-| [@fgrosswig](https://github.com/fgrosswig) | 64x budget reduction forensics — dual-machine 18-day JSONL before/after comparison ([#38335](https://github.com/anthropics/claude-code/issues/38335#issuecomment-4189537353)) |
-| [@Commandershadow9](https://github.com/Commandershadow9) | 34-143x capacity reduction analysis, thinking token hypothesis ([#41506](https://github.com/anthropics/claude-code/issues/41506#issuecomment-4189508296)) |
-| [@kolkov](https://github.com/kolkov) | Built [ccdiag](https://github.com/kolkov/ccdiag), identified three v2.1.91 `--resume` regressions ([#43044](https://github.com/anthropics/claude-code/issues/43044)) |
-| [@simpolism](https://github.com/simpolism) | v2.1.90 changelog correlation, resume cache fix patch (99.7-99.9% hit) |
-| [@luongnv89](https://github.com/luongnv89) | Cache TTL analysis, built [CUStats](https://custats.info) and [context-stats](https://github.com/luongnv89/cc-context-stats) |
-| [@dancinlife](https://github.com/dancinlife) | organizationUuid quota pooling and oauthAccount cross-contamination bug |
-| [@weilhalt](https://github.com/weilhalt) | Built [BudMon](https://github.com/weilhalt/budmon) for rate-limit header monitoring |
-| [@arizonawayfarer](https://github.com/arizonawayfarer) | Windows GrowthBook flag dumps confirming cross-platform consistency |
-| [@dbrunet73](https://github.com/dbrunet73) | Real-world OTel comparison data (v2.1.88 vs v2.1.90) confirming cache improvement |
-| [@maiarowsky](https://github.com/maiarowsky) | Confirmed Bug 3 on v2.1.90 with 26 synthetic entries across 13 sessions |
-| [@edimuj](https://github.com/edimuj) | Measured grep/file-read token waste (3.5M tokens / 1800+ calls), built [tokenlean](https://github.com/edimuj/tokenlean) |
-| [@amicicixp](https://github.com/amicicixp) | Verified v2.1.90 cache improvement with before/after testing |
-| [@pablofuenzalidadf](https://github.com/pablofuenzalidadf) | Reported old Docker versions draining — key server-side evidence ([#37394](https://github.com/anthropics/claude-code/issues/37394)) |
-| [@SC7639](https://github.com/SC7639) | Additional regression data confirming mid-March timeline |
-| Reddit community | [Reverse engineering analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6) of cache sentinel mechanism |
+| [@Sn3th](https://github.com/Sn3th) | Discovered microcompact mechanisms (Bug 4), GrowthBook flags, budget pipeline (Bug 5) |
+| [@rwp65](https://github.com/rwp65) | Discovered client-side false rate limiter (Bug 3) |
+| [@cnighswonger](https://github.com/cnighswonger) | Built [cache-fix interceptor](https://github.com/cnighswonger/claude-code-cache-fix) — 4,700 calls, 98.3% cache hit, TTL tier detection |
+| [@wpank](https://github.com/wpank) | 47,810 requests tracked, v2.1.63 vs v2.1.96 quantitative comparison |
+| [@fgrosswig](https://github.com/fgrosswig) | 64x budget reduction forensics — 18-day JSONL analysis |
+| [@Commandershadow9](https://github.com/Commandershadow9) | 34-143x capacity reduction analysis, thinking token hypothesis |
+| [@kolkov](https://github.com/kolkov) | Built [ccdiag](https://github.com/kolkov/ccdiag), identified v2.1.91 resume regressions |
+| [@simpolism](https://github.com/simpolism) | Resume cache fix patch (99.7-99.9% hit) |
+| [@bilby91](https://github.com/bilby91) | Identified skill_listing + companion_intro cache miss on resume |
+| [@labzink](https://github.com/labzink) | Identified SendMessage cache full miss (Bug 2a) |
+| [@wjordan](https://github.com/wjordan) | Found "Output efficiency" system prompt change via [Piebald-AI](https://github.com/Piebald-AI/claude-code-system-prompts) |
+| [@EmpireJones](https://github.com/EmpireJones) | Discovered telemetry-cache TTL coupling (Anthropic `has repro`) |
+| [@dancinlife](https://github.com/dancinlife) | organizationUuid quota pooling discovery |
+| [@luongnv89](https://github.com/luongnv89) | Cache TTL analysis, built [CUStats](https://custats.info) |
+| [@weilhalt](https://github.com/weilhalt) | Built [BudMon](https://github.com/weilhalt/budmon) for rate-limit monitoring |
+| [@arizonawayfarer](https://github.com/arizonawayfarer) | GrowthBook flag dumps, acompact tool duplication analysis (35%) |
+| [@progerzua](https://github.com/progerzua) | `/branch` context inflation measurement (Bug 9) |
+| Reddit community | [Reverse engineering](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6) of cache sentinel mechanism |
 
 *This analysis is based on community research and personal measurement. It is not endorsed by Anthropic. All workarounds use only official tools and documented features.*

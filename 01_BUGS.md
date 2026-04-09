@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5 and 8 remain **unfixed** as of v2.1.91. Bugs 8a, 9, 10, 11, 2a added April 9.
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10, 2a remain **unfixed** as of v2.1.97 (latest, April 9, 2026). Bug 11 is acknowledged but unresolved. **Six releases (v2.1.92–v2.1.97) introduced zero fixes for any of the nine unfixed bugs.** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v2197) below.
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
@@ -343,6 +343,37 @@ Full per-request data and warming curves: **[04_BENCHMARK.md](04_BENCHMARK.md)**
 | Verdict | **Avoid** | Good | Good | **Best** | **Good** |
 
 v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84.7% in single-prompt test), but recovery is dramatically faster than v2.1.90 (1 request vs 3-5). Both installations converge to 94-99% once warmed. See **[04_BENCHMARK.md](04_BENCHMARK.md)** for per-request data.
+
+---
+
+## Changelog Cross-Reference (v2.1.92–v2.1.97)
+
+> **Added:** April 9, 2026 — systematic cross-reference of [official changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) against all unfixed bugs.
+
+Six releases shipped between v2.1.91 (our last benchmark) and v2.1.97 (latest as of April 9). **None address the nine unfixed bugs.** The development focus was Bedrock/authentication, UI polish, MCP improvements, and resume UX — not token accounting, context mutation, or log integrity.
+
+| Bug | Changelog mentions (v2.1.92–97) | Verdict |
+|-----|----------------------------------|---------|
+| **B3** False RL | v2.1.94: "fixes 429 rate-limit handling"; v2.1.97: "exponential backoff" — both fix **server 429 response** handling, not the **client-side synthetic** rate limiter (zero API call, `model: "<synthetic>"`). Different code path entirely. | ❌ **UNFIXED** |
+| **B4** Microcompact | No mention. Server-controlled via GrowthBook — client updates irrelevant. | ❌ **UNFIXED** |
+| **B5** Budget Cap | v2.1.92: "Write tool diff 60% faster" — diff computation speed, not `applyToolResultBudget()`. 200K aggregate cap untouched. | ❌ **UNFIXED** |
+| **B8** Log Duplication | v2.1.92: "Transcript accuracy: per-block entries carry final token usage instead of streaming placeholder" — may reduce PRELIM entries in **UI transcript**, but JSONL session file behavior unconfirmed. Needs v2.1.92+ JSONL verification. | ⚠️ **POSSIBLY PARTIAL** |
+| **B8a** JSONL Corruption | No mention of atomic writes, fsync, or concurrent tool write safety. | ❌ **UNFIXED** |
+| **B9** /branch Inflation | No mention. | ❌ **UNFIXED** |
+| **B10** TaskOutput Thrash | No fix. TaskOutput deprecation message **still present** in v2.1.97 system prompt, continuing to trigger 21x context injection. Arguably **worsened** — the deprecation is now more prominently embedded. | ❌ **UNFIXED** |
+| **B11** Zero Reasoning | v2.1.94: default effort medium→**high** (more thinking budget); v2.1.92: "400 error when extended thinking produced whitespace-only text" fixed (crash prevention). Root cause (zero-allocation by adaptive thinking) **not addressed** — bcherny stated "investigating with model team" on HN (April 6) with no follow-up. | ⚠️ **SYMPTOMS REDUCED** |
+| **B2a** SendMessage Cache | v2.1.97: "resume-mode issues fixed (picker, diff)" — different symptoms. No mention of Agent SDK `SendMessage` cache miss (`cache_read=0`). | ❓ **UNCLEAR** |
+
+**Preliminary findings (P1–P4):**
+
+| Finding | Changelog mentions | Verdict |
+|---------|-------------------|---------|
+| **P1** Telemetry-TTL | None. `has repro` label on #45381 but no fix announced. | ❓ Unknown |
+| **P2** TTL Dual Tiers | None. Server-side — would not appear in client changelog. | ❓ Unknown |
+| **P3** "Output Efficiency" prompt | **Still present** in v2.1.97 system prompt: *"Go straight to the point. Try the simplest approach first without going in circles."* Added v2.1.64 (Mar 3), unchanged through 33 releases. | ❌ **STILL ACTIVE** |
+| **P4** Third-Party Detection | None. Server-side billing routing. | ❓ Unknown |
+
+**Summary:** Anthropic shipped 6 releases over 8 days (v2.1.92–97) containing Bedrock wizard, Cedar syntax highlighting, focus view toggles, footer layout tweaks, and `/tag` removal — while 9 confirmed bugs affecting token accounting, context integrity, and session stability remain completely unaddressed. The only partial progress is B11 symptom reduction (effort default change + crash fix) and a possible B8 transcript improvement, neither of which fixes the underlying issue.
 
 ---
 

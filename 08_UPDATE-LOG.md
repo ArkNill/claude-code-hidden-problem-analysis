@@ -199,6 +199,25 @@ Previous analysis stated bcherny responded "to" stellaraccident (AMD director) w
 
 **Published:** Bug updates to 01_BUGS.md, 07_TIMELINE.md, 08_UPDATE-LOG.md, 10_ISSUES.md.
 
+### Changelog Cross-Reference (v2.1.92–v2.1.97)
+
+**Focus:** Systematic cross-reference of [official changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) against all 9 unfixed bugs + 4 preliminary findings.
+
+**What was done:**
+- Reviewed complete changelog entries for v2.1.92, v2.1.94, v2.1.96, and v2.1.97 (v2.1.93 and v2.1.95 do not exist — skipped versions)
+- Mapped every fix/feature against Bug Matrix (B3–B11, B2a, P1–P4)
+- Identified false positives: v2.1.94 "429 rate-limit handling" and v2.1.97 "exponential backoff" fix **server 429 response** handling, not B3's **client-side synthetic** rate limiter (different code path). v2.1.92 "Write tool diff 60% faster" is diff computation speed, not B5 budget enforcement.
+
+**Findings:**
+- **0 of 9 unfixed bugs addressed** across 6 releases (8 days of development)
+- **B11 symptoms reduced** (v2.1.94 effort default medium→high, v2.1.92 whitespace-only thinking crash fix) — root cause "investigating" per bcherny with no follow-up
+- **B8 possibly partial** — v2.1.92 transcript accuracy fix may affect PRELIM duplication, but JSONL file-level verification needed
+- **P3 confirmed still active** — "Output Efficiency" system prompt section (added v2.1.64, Mar 3) present verbatim in v2.1.97 system prompt, unchanged through 33 releases
+- **B10 arguably worsened** — TaskOutput deprecation message more prominently embedded in v2.1.97 system prompt
+- Development priorities in v2.1.92–97: Bedrock wizard, Cedar syntax highlighting, focus view toggle, `/tag` removal, footer layout, MCP buffer fixes, OAuth improvements — UI/infrastructure polish, not core accounting or context integrity
+
+**Published:** New section added to [01_BUGS.md — Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197), README.md status/environment updated to reflect v2.1.97 verification.
+
 ---
 
 ## Planned (as of April 9)
