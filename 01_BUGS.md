@@ -182,6 +182,8 @@ Distinct from Bug 8 (duplication). When Claude Code executes multiple tools conc
 
 **Root cause (from #40363):** `/branch` writes every message **twice** in the session file — parent had 8,892 lines/33MB, branch immediately 12,050+ lines. A related path (#36000): after autocompaction, `/branch` copies pre-compaction history plus the summary, effectively undoing the compaction.
 
+**Interaction with B4/B5:** The inflated context (735K) immediately triggers aggressive microcompact clearing (B4) and blows past the 200K tool result budget (B5). A normal session takes 15-20 file reads to hit B5; after `/branch`, it can trigger on the first tool call.
+
 **Evidence strength:** **STRONG** — three duplicate issues, screenshots + category breakdowns, known root cause. Self-closed as duplicate of existing open issue #40363.
 
 ---
@@ -201,6 +203,8 @@ The `TaskOutput` tool's deprecation message instructs agents to `Read` the full 
 
 The logic chain: deprecation message → agent follows instruction → reads full conversation JSON → 87K injected into context → autocompact threshold hit → compact runs → same Read happens again on next notification → thrashing → fatal.
 
+**Interaction with Bug 5:** The 87K injection also instantly consumes nearly half of B5's 200K aggregate tool result budget, accelerating truncation of all prior tool results. B10 is a distinct root cause (deprecation message design) but its severity is amplified by B5's budget cap — without the 200K limit, the 87K injection would be large but survivable.
+
 **Evidence strength:** **STRONG** — concrete JSONL log evidence, internally consistent numbers, known failure mode (autocompact thrashing) with existing duplicate #24764. Anthropic labeled `has repro` and closed, but with no engineer comment and no confirmed fix.
 
 ---
@@ -216,6 +220,8 @@ Adaptive thinking (introduced Feb 9, default medium effort=85 since Mar 3) can u
 **Anthropic acknowledgment (bcherny, HN):**
 > *"The data points at adaptive thinking under-allocating reasoning on certain turns — the specific turns where it fabricated (stripe API version, git SHA suffix, apt package list) had zero reasoning emitted, while the turns with deep reasoning were correct. we're investigating with the model team."*
 
+**Interaction with P3:** The "Output efficiency" system prompt (v2.1.64, "Try the simplest approach first") may amplify this bug — it encourages minimal reasoning, which adaptive thinking may interpret as justification for zero allocation on certain turns.
+
 **Workaround:** `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` (undocumented env var, confirmed present in 8+ issues)
 
 **Evidence strength:** **STRONG** — Anthropic employee (bcherny, `@Anthropic`, "Claude Code @ Anthropic") directly acknowledged the bug on HN with specific fabrication examples. The env var workaround exists and is functional. Multiple users (redknightlois, ylluminate) independently report quality improvement after disabling.
@@ -228,7 +234,7 @@ Adaptive thinking (introduced Feb 9, default medium effort=85 since Mar 3) can u
 
 **Added:** April 9, 2026
 
-Extends Bug 2 (resume cache breakage) to a different code path: the Agent SDK's `SendMessage` orchestrator call.
+Extends Bug 2 (resume cache breakage) to a different code path: the Agent SDK's `SendMessage` orchestrator call. **Not a duplicate of B2** — B2's fix (v2.1.90-91) addressed CLI `--resume` with `deferred_tools_delta`; B2a occurs in the orchestrator's system prompt assembly, which is a separate code path unaffected by the B2 fix.
 
 **Measured (@labzink):**
 
@@ -250,23 +256,22 @@ The 85-second gap between calls rules out TTL expiry (5-minute minimum). The lik
 
 The following findings have supporting evidence but require additional verification before being classified as confirmed bugs.
 
-### P1 — Telemetry-Cache TTL Coupling
+### P1/P2 — Cache TTL Dual Tiers (two triggers, likely one mechanism)
 
-**GitHub Issue:** [#45381](https://github.com/anthropics/claude-code/issues/45381) | **Anthropic label:** `has repro`
+The Anthropic API returns two distinct cache TTL fields: `ephemeral_1h_input_tokens` (1-hour) and `ephemeral_5m_input_tokens` (5-minute). Two independent observations suggest the server downgrades clients from 1h to 5m TTL under specific conditions:
 
-Setting `DISABLE_TELEMETRY=1` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` causes cache TTL to fall from **1 hour to 5 minutes**. Verified via `ephemeral_1h_input_tokens` vs `ephemeral_5m_input_tokens` in API response usage metadata. Anthropic's triage team applied `has repro` — internal reproduction confirmed.
+**Trigger A — Telemetry disabled (P1):**
+- **GitHub Issue:** [#45381](https://github.com/anthropics/claude-code/issues/45381) | **Anthropic label:** `has repro`
+- Setting `DISABLE_TELEMETRY=1` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` causes cache TTL to fall from 1h to 5m. Anthropic's triage team applied `has repro` — internal reproduction confirmed.
+- Combined with [#44850](https://github.com/anthropics/claude-code/issues/44850) (telemetry events getting 429'd), this creates a double bind: enable telemetry and it competes for rate limit budget; disable it and lose 12x cache longevity.
 
-Combined with [#44850](https://github.com/anthropics/claude-code/issues/44850) (telemetry events getting 429'd), this creates a double bind: enable telemetry and it competes for rate limit budget; disable it and lose 12x cache longevity.
+**Trigger B — Quota exceeded (P2):**
+- **Source:** [@cnighswonger](https://github.com/cnighswonger) interceptor data (4,700+ calls)
+- Crossing 100% of the 5h quota appears to trigger a silent downgrade from 1h to 5m TTL. On cnighswonger's account, this is bidirectional (reverts after reset). Other users in [#42052](https://github.com/anthropics/claude-code/issues/42052) report the 5m TTL persisting after reset.
 
-**Caveat:** n=1 (single reporter), causal mechanism unconfirmed. Could be intentional design (1h TTL requires telemetry) rather than a bug.
+**Likely shared mechanism:** Both triggers produce the same observable outcome (1h→5m TTL switch) via the same API fields. The simplest explanation is a single server-side "1h TTL eligibility" check with multiple disqualifying conditions (no telemetry, quota exceeded, possibly others).
 
-### P2 — Cache TTL Dual Tiers and Quota-Triggered Downgrade
-
-**Source:** [@cnighswonger](https://github.com/cnighswonger) interceptor data (4,700+ calls)
-
-The Anthropic API returns two distinct cache TTL fields: `ephemeral_1h_input_tokens` and `ephemeral_5m_input_tokens`. Crossing 100% of the 5h quota appears to trigger a silent downgrade from 1h to 5m TTL. On cnighswonger's account, this is bidirectional (reverts after reset). Other users in [#42052](https://github.com/anthropics/claude-code/issues/42052) report the 5m TTL persisting after reset.
-
-**Caveat:** Quota-triggered switch is observational (correlation). The "stuck after reset" claim is second-hand and unverified by cnighswonger directly.
+**Caveats:** Trigger A is n=1; could be intentional design. Trigger B is observational (correlation); "stuck after reset" claim is second-hand.
 
 ### P3 — "Output Efficiency" System Prompt Change (v2.1.64, March 3)
 
