@@ -170,8 +170,7 @@
 - **Bug 2a (SendMessage cache miss):** Agent SDK `SendMessage` resume produces complete cache miss (`cache_read=0`) including system prompt. Different from CLI resume bug. cnighswonger independently confirmed.
 
 **Preliminary findings added (MODERATE — 4 conditional):**
-- **P1 (Telemetry-TTL coupling):** `DISABLE_TELEMETRY=1` drops cache TTL from 1h to 5m. Anthropic `has repro` label. n=1, mechanism unclear.
-- **P2 (TTL dual tiers):** API returns `ephemeral_1h_input_tokens` / `ephemeral_5m_input_tokens`. Quota crossing appears to trigger downgrade. Second-hand "stuck" reports unverified.
+- **P1/P2 (Cache TTL dual tiers):** Two triggers for 1h→5m TTL downgrade — (A) `DISABLE_TELEMETRY=1` (Anthropic `has repro`, n=1) and (B) quota 100% crossing (cnighswonger interceptor data). Likely one server-side mechanism with multiple disqualifying conditions.
 - **P3 (Output efficiency prompt):** v2.1.64 (Mar 3) added "Try the simplest approach first" to system prompt. Confirmed via [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts). Likely aggravating factor, not sole cause.
 - **P4 (Third-party detection gap):** Raw SDK calls with OAuth bill to plan instead of extra usage. HTTP header evidence. 42+ misclassification issues.
 
@@ -228,7 +227,7 @@ The following items were identified during the April 1-9 analysis cycle and rema
 - **Thinking token isolation test**: run sessions with `alwaysThinkingEnabled: false` and compare per-1% utilization cost. If it drops significantly → thinking tokens are the main driver. If not → cache-read weighting is primary.
 - Publish full 7-day cycle analysis with per-window utilization tracking
 - Monitor community responses to #38335 and #41506 comments
-- **Verify preliminary findings (P1-P4):** P1 telemetry-TTL coupling (has repro, needs n>1), P2 dual TTL tiers (needs direct observation), P3 "Output efficiency" prompt (needs causal attribution), P4 third-party detection (needs source code confirmation)
+- **Verify preliminary findings (P1/P2, P3, P4):** P1/P2 cache TTL dual tiers (has repro for telemetry trigger, needs n>1; quota trigger needs direct observation), P3 "Output efficiency" prompt (needs causal attribution), P4 third-party detection (needs source code confirmation)
 - **v2.1.92+ JSONL verification:** Check if B8 PRELIM duplication is reduced in transcript (changelog: "per-block entries carry final token usage")
 
 ---

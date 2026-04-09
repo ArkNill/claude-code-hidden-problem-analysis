@@ -22,7 +22,7 @@
 | **B11** | Adaptive thinking zero-reasoning → fabrication | **Anthropic acknowledged (HN)** | [01_BUGS.md](01_BUGS.md#bug-11--adaptive-thinking-zero-reasoning-server-side-acknowledged) |
 | **B2a** | SendMessage resume: cache_read=0 (even system prompt) | cnighswonger confirmed | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
 
-**Preliminary findings (MODERATE):** P1 telemetry-TTL coupling (`has repro`), P2 dual TTL tiers, P3 "Output efficiency" system prompt (v2.1.64), P4 third-party detection gap. See [01_BUGS.md — Preliminary Findings](01_BUGS.md#preliminary-findings-april-9-moderate--conditional-inclusion).
+**Preliminary findings (MODERATE):** P1/P2 cache TTL dual tiers — two triggers for 1h→5m downgrade: telemetry disabled (`has repro`) and quota exceeded. P3 "Output efficiency" system prompt (v2.1.64). P4 third-party detection gap. See [01_BUGS.md — Preliminary Findings](01_BUGS.md#preliminary-findings-april-9-moderate--conditional-inclusion).
 
 **Changelog cross-reference (v2.1.92–v2.1.97):** Six releases shipped zero fixes for the nine unfixed bugs. See [01_BUGS.md — Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197).
 

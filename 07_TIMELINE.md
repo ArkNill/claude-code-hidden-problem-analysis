@@ -336,8 +336,7 @@ Each new model release or version update has been a trigger for the next escalat
 
 | # | Finding | Issue | Status |
 |---|---------|-------|--------|
-| P1 | Disabling telemetry drops cache TTL from 1h to 5m | [#45381](https://github.com/anthropics/claude-code/issues/45381) | Anthropic `has repro`, n=1 |
-| P2 | API exposes dual TTL tiers (`ephemeral_1h` / `ephemeral_5m`), quota crossing may trigger downgrade | cnighswonger data | Observational |
+| P1/P2 | Cache TTL dual tiers: two triggers for 1h→5m downgrade — (A) telemetry disabled, (B) quota exceeded | [#45381](https://github.com/anthropics/claude-code/issues/45381) + cnighswonger data | Anthropic `has repro` (trigger A); observational (trigger B) |
 | P3 | v2.1.64 (Mar 3) added "Try the simplest approach first" to system prompt | [Piebald-AI repo](https://github.com/Piebald-AI/claude-code-system-prompts) | Confirmed change, causal link unproven |
 | P4 | Raw SDK calls bypass third-party detection, bill to plan instead of extra usage | [#45380](https://github.com/anthropics/claude-code/issues/45380) | HTTP header evidence, 42+ related issues |
 

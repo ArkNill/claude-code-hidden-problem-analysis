@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10, 2a remain **unfixed** as of v2.1.97 (latest, April 9, 2026). Bug 11 is acknowledged but unresolved. **Six releases (v2.1.92–v2.1.97) introduced zero fixes for any of the nine unfixed bugs.** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v2197) below.
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.97. Bug 2a status is **unclear** (v2.1.97 resume fixes may apply) (latest, April 9, 2026). Bug 11 is acknowledged but unresolved. **Six releases (v2.1.92–v2.1.97) introduced zero fixes for any of the nine unfixed bugs.** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v2197) below.
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
