@@ -87,7 +87,7 @@ tengu_summarize_tool_results: True
 **Results:**
 - Budget exceeded detected at **242,094 chars** (> 200K cap)
 - **261 budget events** with `suspiciously_small` marker
-- Tool results reduced to **1-41 chars** (originally thousands+)
+- Tool results reduced to **1-41 chars** in this session (originally thousands+; full-week max: 49 chars)
 - Examples: `msg[32] 1 char`, `msg[42] 2 chars`, `msg[172] 22 chars` (x33 occurrences)
 
 **v2.1.91 Verification:**

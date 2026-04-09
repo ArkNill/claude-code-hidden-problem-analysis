@@ -123,7 +123,7 @@ Tokens are the unit of measurement for how much text Claude processes. You do no
 
 The model is not getting dumber — it is literally losing access to information it read earlier.
 
-**What happens:** After approximately 15-20 file reads in a single session, the total tool result text exceeds a 200K character aggregate cap. At that point, older tool results are silently truncated to as few as 1-41 characters. Claude can no longer see those file contents, grep results, or command outputs — only a tiny stub remains.
+**What happens:** After approximately 15-20 file reads in a single session, the total tool result text exceeds a 200K character aggregate cap. At that point, older tool results are silently truncated to as few as 1-49 characters. Claude can no longer see those file contents, grep results, or command outputs — only a tiny stub remains.
 
 **Measured example:** In one tested session, 261 budget truncation events were detected. Tool results that originally contained thousands of characters were reduced to single-digit lengths. The threshold was crossed at 242,094 total characters of tool output (see [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions)).
 
@@ -343,7 +343,7 @@ Detailed technical analysis in [01_BUGS.md](01_BUGS.md). This table is a practic
 | **B2** Resume | `--resume` causes full cache miss, rebilling entire conversation | **Fixed** (v2.1.90) | Avoid `--resume` and `--continue`. Start fresh. |
 | **B3** False Rate Limit | Client generates fake "Rate limit reached" errors without contacting the API. 24 synthetic events measured across 6 days. | **Unfixed** | Restart Claude Code if you hit a rate limit immediately after idle time. |
 | **B4** Microcompact | Old tool results silently replaced with `[Old tool result content cleared]`. 327 events measured. Cache stays at 99%+, but the model loses access to earlier data. | **Unfixed** | Start fresh sessions periodically. No env var prevents this. |
-| **B5** Budget Cap | After 200K aggregate characters of tool results, older results are truncated to 1-41 characters. 261 events measured in one session. | **Unfixed** | Start fresh sessions after 15-20 file reads. Read only the lines you need. |
+| **B5** Budget Cap | After 200K aggregate characters of tool results, older results are truncated to 1-49 characters. 72,839 events measured across 20 sessions. | **Unfixed** | Start fresh sessions after 15-20 file reads. Read only the lines you need. |
 | **B8** Log Inflation | Extended thinking causes 2-3x duplicate entries in JSONL logs, inflating local token counts. JSONL shows 1.93x actual usage. | **Unfixed** | Do not trust local JSONL token counts as absolute values. Use them for relative comparisons only. |
 
 ### Server-Side Factors

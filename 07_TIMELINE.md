@@ -5,7 +5,7 @@
 > 14-month chronicle of rate limit / token consumption issues in Claude Code.
 > Data collected from GitHub Issues via API on 2026-04-02. Event counts reference their discovery-date baselines.
 >
-> **Latest data (April 8):** Full-week proxy dataset (17,610 requests, 129 sessions) with updated event counts in [13_PROXY-DATA.md](13_PROXY-DATA.md).
+> **Latest data (April 9):** Full-week proxy dataset (17,610 requests, 129 sessions) with updated event counts in [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 
@@ -13,10 +13,10 @@
 
 | Metric | Value |
 |--------|-------|
-| **Duration** | 14 months (2025-02 ~ 2026-04-03, ongoing) |
+| **Duration** | 14 months (2025-02 ~ 2026-04-09, ongoing) |
 | **Major escalation cycles** | Multiple across 9 phases (notably Phases 4, 6, 8, and 9) |
 | **Largest issue** | #16157 — 1,422 comments, 647 thumbs_up |
-| **Root causes identified** | 16 client-side + 6 server-side (compound) |
+| **Root causes identified** | 16 client-side (B1-B5, B8, B8a, B9-B11, B2a + 5 historical) + 6 server-side (compound) |
 | **Anthropic official response** | X/Twitter (Lydia Hallie, April 2-3) + GitHub #42796 only (bcherny, April 6, 6 comments) + HN (bcherny, adaptive thinking bug acknowledged). Zero responses on #38335/#41930/#42542 and 88+ other issues |
 
 ---
@@ -204,7 +204,7 @@ Local rate limiter generates synthetic "Rate limit reached" errors (`model: "<sy
 Three compaction mechanisms (`microCompact.ts:422`, `microCompact.ts:305`, `sessionMemoryCompact.ts:57`) silently strip tool results on every API call, controlled by server-side GrowthBook A/B flags. Proxy testing (April 3) showed **cache ratio stays 99%+ in main sessions** during clearing — the stable substitution preserves the prompt prefix. The actual cost is **context quality degradation** (model loses access to earlier tool results). Also explains why old Docker versions started draining recently ([#37394](https://github.com/anthropics/claude-code/issues/37394)) — server-side flags changed without client update. **Unfixed through v2.1.91, server-controlled.**
 
 **Bug 5 — Tool result budget enforcement** (discovered by [@Sn3th](https://github.com/Sn3th), confirmed by proxy April 3):
-`applyToolResultBudget()` runs before microcompact in the request pipeline, enforcing a 200K aggregate cap on tool results via `tengu_hawthorn_window` GrowthBook flag. Per-tool caps (Grep 20K, Bash 30K) via `tengu_pewter_kestrel`. 261 budget events measured in one session — tool results truncated to 1-41 chars. v2.1.91 `maxResultSizeChars` override is MCP-only. **Unfixed for built-in tools.**
+`applyToolResultBudget()` runs before microcompact in the request pipeline, enforcing a 200K aggregate cap on tool results via `tengu_hawthorn_window` GrowthBook flag. Per-tool caps (Grep 20K, Bash 30K) via `tengu_pewter_kestrel`. 261 budget events measured in one session — tool results truncated to 1-49 chars (max observed across full week). v2.1.91 `maxResultSizeChars` override is MCP-only. **Unfixed for built-in tools.**
 
 **Server-side 1M billing regression** ([#42616](https://github.com/anthropics/claude-code/issues/42616), [#42569](https://github.com/anthropics/claude-code/issues/42569)):
 Max plan 1M context (free since March 13) incorrectly classified as "extra usage." Debug log shows 429 at 23K tokens with request ID `req_011CZf8TJf84hAUziB6LuRoc`. **Server-side bug, unfixed.**
@@ -261,7 +261,7 @@ Note: The numbering below (1-16) is a chronological discovery order for this tim
 | 7 | **Thinking signature replay** — opaque base64 blocks resent on resume | [#42260](https://github.com/anthropics/claude-code/issues/42260) | — | 500K+ tokens per resume |
 | 8 | **Client-side false rate limiter** — synthetic error blocks requests without API call | [#40584](https://github.com/anthropics/claude-code/issues/40584) | All | Instant "Rate limit reached" with `model: "<synthetic>"`, `input_tokens: 0`. **Unfixed** |
 | 9 | **Silent microcompact → context degradation** — GrowthBook-controlled compaction strips tool results | [#42542](https://github.com/anthropics/claude-code/issues/42542) | v2.1.89+ | Context quality loss (cache stays 99%+ in main session). **Unfixed, server-controlled** |
-| 10 | **Tool result budget enforcement** — `applyToolResultBudget()` caps tool results at 200K aggregate | GrowthBook flags | All | Tool results truncated to 1-41 chars after threshold. **Unfixed** (v2.1.91 MCP override only) |
+| 10 | **Tool result budget enforcement** — `applyToolResultBudget()` caps tool results at 200K aggregate | GrowthBook flags | All | Tool results truncated to 1-49 chars after threshold. **Unfixed** (v2.1.91 MCP override only) |
 | 11 | **JSONL log duplication** — extended thinking generates 2-5x PRELIM entries per API call | [#41346](https://github.com/anthropics/claude-code/issues/41346) | All | 2.87x token inflation in local logs. Server impact unknown. **Unfixed** |
 
 ### Server-Side Issues
@@ -314,7 +314,7 @@ Each new model release or version update has been a trigger for the next escalat
 
 ### April 6-9: Community Acceleration + Anthropic GitHub Response
 
-**#42796 (stellaraccident)** became the focal point — 168 new comments across April 6-8, HN viral amplification. **bcherny (Anthropic, Claude Code lead)** posted 6 comments on April 6 only:
+**#42796** became the focal point — 168 new comments across April 6-8, HN viral amplification. **bcherny (Anthropic, Claude Code lead)** posted 6 comments on April 6 only (triggered by HN virality, not by any specific commenter — see correction below):
 - Confirmed `redact-thinking` is UI-only, does not impact thinking budgets
 - Confirmed adaptive thinking medium effort=85 default (since Mar 3)
 - Confirmed "no internal changes I'm aware of that could have caused this"

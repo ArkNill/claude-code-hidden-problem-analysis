@@ -430,7 +430,7 @@ Two different caps apply depending on the tool type:
 | Built-in (Read, Bash, Grep, Glob, Edit) | 30K-50K chars (per GrowthBook flags) | **200K chars** (Bug 5) | No |
 | MCP tools | Up to 500K chars | Same 200K aggregate | Yes (`_meta["anthropic/maxResultSizeChars"]`) |
 
-The 200K aggregate budget (`tengu_hawthorn_window`) applies across all tool results in the conversation. After ~15-20 file reads, older results are silently truncated to 1-41 characters. This is Bug 5 — there is no environment variable to disable it.
+The 200K aggregate budget (`tengu_hawthorn_window`) applies across all tool results in the conversation. After ~15-20 file reads, older results are silently truncated to 1-49 characters. This is Bug 5 — there is no environment variable to disable it.
 
 ### Best practices
 

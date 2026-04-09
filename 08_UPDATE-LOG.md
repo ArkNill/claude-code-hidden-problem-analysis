@@ -55,7 +55,7 @@
 - Commented on 91+ GitHub issues with analysis cross-references
 
 **Findings:**
-- **Bug 5 (Budget Cap)** discovered: `applyToolResultBudget()` enforces 200K aggregate cap via `tengu_hawthorn_window` GrowthBook flag. **261 budget events** measured — tool results truncated to 1-41 chars. v2.1.91 `maxResultSizeChars` override is MCP-only, built-in tools unaffected.
+- **Bug 5 (Budget Cap)** discovered: `applyToolResultBudget()` enforces 200K aggregate cap via `tengu_hawthorn_window` GrowthBook flag. **261 budget events** measured — tool results truncated to 1-41 chars (April 3 session; full-week max: 49 chars). v2.1.91 `maxResultSizeChars` override is MCP-only, built-in tools unaffected.
 - **Bug 8 (JSONL Duplication)** measured: extended thinking generates 2-5 PRELIM entries per API call. Main session: **2.87x** token inflation.
 - **v2.1.91 benchmark results:** Sentinel gap closed — npm hit 84.5% cold start; standalone varied by workspace (27.8% in full benchmark, higher in preliminary tests). Cache recovers to 95%+ within a few requests. All bugs except B1-B2 persist.
 - **Bug 3 confirmed:** 151 `<synthetic>` entries across 65 sessions on our setup.
@@ -222,12 +222,14 @@ Previous analysis stated bcherny responded "to" stellaraccident (AMD director) w
 
 ## Planned (as of April 9)
 
-The following items were identified during the April 1-6 analysis cycle and remain pending:
+The following items were identified during the April 1-9 analysis cycle and remain pending:
 
 - Continue rate limit header data collection through April 10 (7d window reset)
 - **Thinking token isolation test**: run sessions with `alwaysThinkingEnabled: false` and compare per-1% utilization cost. If it drops significantly → thinking tokens are the main driver. If not → cache-read weighting is primary.
 - Publish full 7-day cycle analysis with per-window utilization tracking
 - Monitor community responses to #38335 and #41506 comments
+- **Verify preliminary findings (P1-P4):** P1 telemetry-TTL coupling (has repro, needs n>1), P2 dual TTL tiers (needs direct observation), P3 "Output efficiency" prompt (needs causal attribution), P4 third-party detection (needs source code confirmation)
+- **v2.1.92+ JSONL verification:** Check if B8 PRELIM duplication is reduced in transcript (changelog: "per-block entries carry final token usage")
 
 ---
 

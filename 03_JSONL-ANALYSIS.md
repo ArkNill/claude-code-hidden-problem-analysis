@@ -15,7 +15,7 @@ JSONL session logs are the client's record of every API interaction. Unlike the 
 **Key findings:**
 - **Synthetic rate limiting (B3):** 24 confirmed `<synthetic>` entries across 6 days (JSONL). At corpus scale: 183/532 files (34.4%) contain synthetic markers, 3,129 rate limit text occurrences across 257 files (48.3%). See [13_PROXY-DATA.md §12](13_PROXY-DATA.md#12-jsonl-bulk-scan-532-files-april-1-8)
 - **PRELIM inflation (B8):** 5,551 PRELIM vs 6,825 FINAL entries (0.81x ratio overall, up to 1.14x on heavy days). Bulk scan (532 files): average inflation 2.37x, worst case 4.42x. See [13_PROXY-DATA.md §12.3](13_PROXY-DATA.md#123-extended-thinking-inflation-b8--top-10-largest-sessions)
-- **Subagent overhead:** 279 subagent sessions consumed 17.3% of total cache_read but 40.4% of total output. Cold start median: 13,358 cache_create tokens. Proxy confirms: 3,788 haiku requests at 58.1% cache vs 11,985 opus at 98.8%
+- **Subagent overhead:** 279 subagent sessions consumed 17.3% of total cache_read but 40.4% of total output. Cold start median: 13,358 cache_create tokens. Proxy confirms: 3,781 haiku requests at 58.1% cache vs 11,959 opus at 98.8%
 - **Session growth:** cache_read grows 24x over a 990-turn session (25K → 595K per turn, +575 linear). Proxy (53 sessions): **median 1,845 tok/min** (P25: 801, P75: 3,581). See [13_PROXY-DATA.md §3](13_PROXY-DATA.md#3-context-growth-rate-53-opus-sessions-20-requests-10-min)
 - **Session cost range:** 753x variation (447K → 336M visible tokens) between cheapest and most expensive sessions
 - **Time-normalized cost:** median 153K cache_read/minute, mean 227K/minute

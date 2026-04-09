@@ -183,8 +183,8 @@ xychart-beta
 
 | Bucket | Events | % |
 |--------|--------|---|
-| 0-10 chars | 6,843 | 9.5% |
-| 11-100 chars | 65,996 | **90.5%** |
+| 0-10 chars | 6,843 | 9.4% |
+| 11-100 chars | 65,996 | **90.6%** |
 
 90.6% of budget enforcement events truncate tool results to 11-100 characters (max observed: 49 chars). The remaining 9.4% truncate to 0-10 characters. Average content size across all events: 24 chars. **No event retains more than 49 characters** — every tool result that crosses the budget threshold is reduced to a stub.
 

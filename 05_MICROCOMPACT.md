@@ -5,7 +5,7 @@
 Two separate mechanisms silently modify your conversation before it reaches the API. Neither is controllable via environment variables, and both remain active on v2.1.91.
 
 - **Bug 4 (Microcompact):** Earlier tool results replaced with `[Old tool result content cleared]`. 327 events measured (April 3 focused test). Doesn't hurt cache (99%+ maintained) but destroys context quality.
-- **Bug 5 (Budget enforcement):** Tool results truncated after 200K aggregate chars. 261 events measured (April 3 focused test). Results reduced to 1-41 chars.
+- **Bug 5 (Budget enforcement):** Tool results truncated after 200K aggregate chars. 261 events measured (April 3 focused test). Results reduced to 1-41 chars (April 3 session; full-week max: 49 chars).
 
 > **Latest data (April 8):** Full-week proxy data shows B4: 3,782 events (15,998 items cleared), B5: 72,839 events (100% truncation rate). See [13_PROXY-DATA.md](13_PROXY-DATA.md) for the complete dataset.
 
@@ -145,7 +145,7 @@ tengu_summarize_tool_results: true
 
 This runs BEFORE microcompact via `applyToolResultBudget()`. Confirmed active:
 - **261 budget events** detected in a single session
-- Tool results reduced to **1-41 chars** (originally thousands+)
+- Tool results reduced to **1-41 chars** in this session (originally thousands+; full-week max: 49 chars — see [13_PROXY-DATA.md](13_PROXY-DATA.md))
 - Budget exceeded at **242,094 chars** (> 200K cap)
 - v2.1.91 `maxResultSizeChars` override is **MCP-only** — built-in Read/Bash/Grep unaffected
 

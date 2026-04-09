@@ -54,7 +54,7 @@ Triggered by large transcripts and concurrent sub-agent spawns. [@rwp65](https:/
 
 - **Discovery:** [@rwp65](https://github.com/rwp65) in [#40584](https://github.com/anthropics/claude-code/issues/40584) (March 29, 2026)
 - **Cross-referenced by:** [@marlvinvu](https://github.com/marlvinvu) across [#40438](https://github.com/anthropics/claude-code/issues/40438), [#39938](https://github.com/anthropics/claude-code/issues/39938), [#38239](https://github.com/anthropics/claude-code/issues/38239)
-- **Status:** **Unfixed** — present in all versions through v2.1.91
+- **Status:** **Unfixed** — present in all versions through v2.1.97
 - **Impact:** Users see "Rate limit reached" immediately, even after hours of inactivity when the budget should have fully reset. No API call is made, so the error is entirely client-generated.
 
 ---
@@ -299,7 +299,7 @@ xychart-beta
     bar [3129,3782,72839,532]
 ```
 
-> B3: 3,129 rate limit text occurrences across 257/532 files. B4: 3,782 clearing events (15,998 items). B5: 72,839 truncation events (100% rate). B8: universal across all 532 analyzed files (2.37x avg inflation). Full data: [13_PROXY-DATA.md](13_PROXY-DATA.md).
+> B3: 3,129 rate limit text occurrences across 257/532 files (183 files contain `<synthetic>` model entries specifically). B4: 3,782 clearing events (15,998 items). B5: 72,839 truncation events (100% rate). B8: universal across all 532 analyzed files (2.37x avg inflation). Full data: [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 
@@ -336,13 +336,13 @@ Full per-request data and warming curves: **[04_BENCHMARK.md](04_BENCHMARK.md)**
 |--------|-------------------|------------|-------------------|------------|-------------------|
 | Cold start | **4-17%** | 63-80% | **14-47%** | **84.5%** | **27.8%** |
 | Recovery to 95%+ | Never | 3-5 reqs | 3-5 reqs | **2 reqs** | **1 req** |
-| Sub-agent cold | — | 79-87% | 14-47% | **54%** | **0%** |
+| Sub-agent cold | — | 79-87% | 14-47% | **54%** | **0%** ⚠️ |
 | Sub-agent stable | — | 87-94% | 94-99% | **93-99%** | **91-99%** |
 | Stable session | 90-99% | **95-99.8%** | **95-99.7%** | **98-99.6%** | **94-99%** |
 | Overall | ~20% | 86.4% | 86.2% | **88.4%** | **84.1%** |
 | Verdict | **Avoid** | Good | Good | **Best** | **Good** |
 
-v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84.7% in single-prompt test), but recovery is dramatically faster than v2.1.90 (1 request vs 3-5). Both installations converge to 94-99% once warmed. See **[04_BENCHMARK.md](04_BENCHMARK.md)** for per-request data.
+v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84.7% in single-prompt test), but recovery is dramatically faster than v2.1.90 (1 request vs 3-5). Both installations converge to 94-99% once warmed. ⚠️ Standalone sub-agent cold start regressed to 0% (full rebuild) in v2.1.91, down from 14-47% in v2.1.90 — npm is preferred for sub-agent-heavy workflows. See **[04_BENCHMARK.md](04_BENCHMARK.md)** for per-request data.
 
 ---
 
