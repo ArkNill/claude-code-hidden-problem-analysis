@@ -47,7 +47,8 @@
 
 ### Rate Limit Reports (major threads)
 - [#16157](https://github.com/anthropics/claude-code/issues/16157) — Instantly hitting usage limits (1400+ comments)
-- [#38335](https://github.com/anthropics/claude-code/issues/38335) — Session limits exhausted abnormally fast (300+ comments)
+- [#42796](https://github.com/anthropics/claude-code/issues/42796) — Rate limits severely degraded (HN viral, **bcherny responded** — only issue with Anthropic GitHub response)
+- [#38335](https://github.com/anthropics/claude-code/issues/38335) — Session limits exhausted abnormally fast (478+ comments, 15 days, zero Anthropic response)
 - [#41788](https://github.com/anthropics/claude-code/issues/41788) — My original report (Max 20, 100% in ~70 min)
 
 ---
@@ -63,7 +64,7 @@
 > *"Peak-hour limits are tighter and 1M-context sessions got bigger, that's most of what you're feeling. We fixed a few bugs along the way, but none were over-charging you."*
 
 **Our measured data raises questions about this assessment:**
-- **Bug 5 (200K cap):** Tool results silently truncated to 1-41 chars after the aggregate 200K threshold. Users paying for 1M context effectively have a 200K tool result budget for built-in tools — the rest is silently discarded.
+- **Bug 5 (200K cap):** Tool results silently truncated to 1-49 chars after the aggregate 200K threshold. Users paying for 1M context effectively have a 200K tool result budget for built-in tools — the rest is silently discarded.
 - **Bug 3 (synthetic RL):** 151 `<synthetic>` entries across 65 session files (all-time; 24 entries in the April 1-6 analysis window — see [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)). The client blocks API calls without server involvement — users see "Rate limit reached" with zero actual API consumption.
 - **Bug 8 (PRELIM duplication):** Extended thinking sessions log 2-3x more token entries than actual API calls. Whether the server-side rate limiter counts these remains an open question.
 
@@ -122,7 +123,7 @@
 ---
 
 <details>
-<summary><strong>All 91 issues with root cause analysis + v2.1.91 update posted</strong> (click to expand)</summary>
+<summary><strong>Original 91 issues with root cause analysis + v2.1.91 update posted</strong> (click to expand — additional issues from April 9 are in the categorized sections above)</summary>
 
 | # | Issue | Title |
 |---|-------|-------|

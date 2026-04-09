@@ -8,9 +8,25 @@
 
 ---
 
-## Latest Update (April 8)
+## Latest Update (April 9)
 
-### Full-week proxy dataset — [13_PROXY-DATA.md](13_PROXY-DATA.md)
+### April 9 — 5 new bugs, 4 preliminary findings, changelog cross-reference
+
+**5 new bugs + 4 preliminary findings** from community-wide issue/comment analysis and fact-checking (April 6-9):
+
+| Bug | What | Evidence | Details |
+|-----|------|----------|---------|
+| **B8a** | JSONL non-atomic write → session corruption | ~10+ duplicates in [#21321](https://github.com/anthropics/claude-code/issues/21321) | [01_BUGS.md](01_BUGS.md#bug-8a--jsonl-non-atomic-write-corruption-v2185) |
+| **B9** | `/branch` context inflation (6%→73%) | 3 duplicate issues | [01_BUGS.md](01_BUGS.md#bug-9--branch-context-inflation-all-versions) |
+| **B10** | TaskOutput deprecation → 21x context injection → fatal | `has repro` | [01_BUGS.md](01_BUGS.md#bug-10--taskoutput-deprecation--autocompact-thrashing-v2192) |
+| **B11** | Adaptive thinking zero-reasoning → fabrication | **Anthropic acknowledged (HN)** | [01_BUGS.md](01_BUGS.md#bug-11--adaptive-thinking-zero-reasoning-server-side-acknowledged) |
+| **B2a** | SendMessage resume: cache_read=0 (even system prompt) | cnighswonger confirmed | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
+
+**Preliminary findings (MODERATE):** P1 telemetry-TTL coupling (`has repro`), P2 dual TTL tiers, P3 "Output efficiency" system prompt (v2.1.64), P4 third-party detection gap. See [01_BUGS.md — Preliminary Findings](01_BUGS.md#preliminary-findings-april-9-moderate--conditional-inclusion).
+
+**Changelog cross-reference (v2.1.92–v2.1.97):** Six releases shipped zero fixes for the nine unfixed bugs. See [01_BUGS.md — Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197).
+
+### April 8 — Full-week proxy dataset — [13_PROXY-DATA.md](13_PROXY-DATA.md)
 
 cc-relay proxy database now covers **17,610 requests** across **129 sessions** (April 1-8), with automated bug detection across **532 JSONL files** (158.3 MB):
 
@@ -19,7 +35,7 @@ cc-relay proxy database now covers **17,610 requests** across **129 sessions** (
 | Budget enforcement (B5) | 261 events | **72,839 events** | 279x |
 | Microcompact (B4) | 327 events | **3,782 events** (15,998 items) | 12x |
 | B8 inflation (bulk scan) | 2.87x (1 session) | **2.37x avg** (10 sessions, max 4.42x) | Universal |
-| Synthetic rate limit (B3) | 24 entries / 6 days | **183/532 files** (34.4%) | Pervasive |
+| Synthetic rate limit (B3) | 24 entries / 6 days | **183/532 files** (34.4%) with `<synthetic>` model entries | Pervasive |
 | Context growth rate | +575 tok/turn | **median 1,845 tok/min** (53 sessions) | Statistical |
 
 **New findings:**
@@ -72,7 +88,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Nine client-side bugs r
 |-----|-------------|--------|--------|---------|
 | **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
 | **B2** Resume | `--resume` replays full context uncached | Full cache miss per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
-| **B2a** SendMessage | Agent SDK SendMessage resume: full cache miss including system prompt | cache_read=0 on first resume | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
+| **B2a** SendMessage | Agent SDK SendMessage resume: full cache miss including system prompt | cache_read=0 on first resume | **Unclear** | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
 | **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
 | **B4** Microcompact | Tool results silently cleared mid-session | 3,782 events, 15,998 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled) |
 | **B5** Budget cap | 200K aggregate limit on tool results | 72,839 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions) |
@@ -147,7 +163,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 **Where our data diverges from this assessment:**
 
-- **"None were over-charging you"** — Bug 5 silently truncates tool results to 1-41 chars after a 200K aggregate threshold. Users paying for 1M context effectively have a 200K tool result budget for built-in tools. 261 truncation events measured in a single session.
+- **"None were over-charging you"** — Bug 5 silently truncates tool results to 1-49 chars after a 200K aggregate threshold. Users paying for 1M context effectively have a 200K tool result budget for built-in tools. 261 truncation events measured in a single session.
 - **"We fixed a few bugs"** — Cache bugs (B1-B2) are fixed, but Bugs 3-5 and B8 remain active in v2.1.91. Client-side false rate limiter (B3) generated 151 synthetic "Rate limit reached" errors across 65 sessions on our setup — zero API calls made.
 - **"Peak-hour limits are tighter"** — Our April 6 proxy data shows the bottleneck is always the 5h window (`representative-claim` = `five_hour` in 100% of 3,702 requests), regardless of time of day. Weekend and off-peak data shows the same pattern.
 - **Thinking token accounting** — Extended thinking tokens don't appear in `output_tokens` from the API, yet visible output alone explains less than half the observed utilization cost. If thinking tokens are counted against quota at output-token rate, this is a significant invisible cost that users have no way to monitor or control.

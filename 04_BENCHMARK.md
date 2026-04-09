@@ -2,7 +2,7 @@
 
 # Cache Efficiency Benchmark — npm vs Standalone
 
-> **Current answer (v2.1.91):** On v2.1.91, npm hits 84.5% cold start. Standalone varies by workspace (27.8% in the full benchmark, higher in single-prompt tests), but recovery is dramatically faster than v2.1.90 — both converge to 94-99% within a few requests. Use whichever you prefer.
+> **Current answer (v2.1.91):** On v2.1.91, npm hits 84.5% cold start. Standalone varies by workspace (27.8% in the full benchmark, higher in single-prompt tests), but recovery is dramatically faster than v2.1.90 — both converge to 94-99% within a few requests. npm is slightly preferred for sub-agent-heavy workflows (54.1% vs 0% sub-agent cold start); for single-session work, both are equivalent once warmed.
 >
 > The v2.1.90 data below is kept for reference — it shows the gap that existed and how it was measured. The v2.1.91 head-to-head comparison is at the [bottom of this file](#v2191-full-benchmark-april-3-2026).
 
@@ -293,7 +293,7 @@ The [v2.1.89-90 changelog](https://code.claude.com/docs/en/changelog) confirms m
 - Lydia Hallie (Product): *"We shipped some fixes on the Claude Code side that should help"* — [Post](https://x.com/lydiahallie/status/2039107775314428189)
 - Thariq Shihipar (Technical Staff): Confirmed prompt caching bugs being investigated — [Post](https://x.com/trq212/status/2027232172810416493)
 
-Note: Anthropic has not responded to any of the 91+ GitHub issues (2+ months of silence). All communication has been via personal X accounts and the changelog.
+Note: As of April 6, bcherny responded on [#42796](https://github.com/anthropics/claude-code/issues/42796) only (6 comments, triggered by HN virality). All other 90+ issues remain without response. See [10_ISSUES.md](10_ISSUES.md#anthropic-official-response).
 
 ### Proxy Ruled Out
 
@@ -446,7 +446,7 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 | Sub-agent stable | 87-94% | 94-99% | **93-99%** | **91-99%** |
 | Stable session | 95-99.8% | 95-99.7% | **98-99.6%** | **94-99%** |
 
-*\*v2.1.90 request counts include sub-agent turns (each sub-agent turn = one request in the proxy log), while v2.1.91 counts are main session requests only. The v2.1.90 npm session spawned many sub-agents for Scenario 7 (79-report parallel read), inflating its count.*
+*\*v2.1.90 request counts include sub-agent turns (each sub-agent turn = one request in the proxy log), while v2.1.91 counts are main session requests only. The 50x difference (1,753 vs 34) is primarily from Scenario 7 (79-report parallel read) which spawned dozens of sub-agents, each generating multiple proxy requests. The v2.1.91 benchmark ran the same scenarios but the proxy log was filtered to main session requests only, excluding sub-agent traffic.*
 
 **Findings:**
 
@@ -454,11 +454,11 @@ Same machine, same proxy, same scenarios as v2.1.90. Both installations updated 
 
 2. **Recovery is much faster on v2.1.91**: Standalone recovered from 27.8% to 99.3% in a single request. On v2.1.90, recovery from 14-47% took 3-5 requests.
 
-3. **Sub-agent behavior**: npm sub-agents start at 54.1% and warm to 93%+. Standalone sub-agents start at 0% (full rebuild) but warm quickly to 91%+. The sub-agent gap still exists in v2.1.91 but is less impactful due to fast recovery.
+3. **Sub-agent behavior**: npm sub-agents start at 54.1% and warm to 93%+. Standalone sub-agents start at **0% (full rebuild)** — a significant regression from v2.1.90's 14-47%. They warm quickly to 91%+, but the initial full miss means every new sub-agent spawn pays full price on its first request.
 
-4. **Overall efficiency**: Both installations achieve comparable overall cache (88.4% vs 84.1%). The 4pp difference is primarily from the standalone cold start — once warmed, they converge.
+4. **Overall efficiency**: Both installations achieve comparable overall cache (88.4% vs 84.1%). The 4pp difference comes from the standalone cold start and sub-agent 0% init — once warmed, they converge.
 
-**Recommendation update:** On v2.1.91, **either installation is fine.** npm retains a theoretical advantage (no Sentinel code path) but the practical difference is now negligible. See [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) for full per-request data.
+**Recommendation update:** On v2.1.91, **npm is slightly preferred** for workflows that spawn frequent sub-agents (54.1% vs 0% cold start). For single-session work without heavy sub-agent use, both installations perform equivalently once warmed. See [06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md) for full per-request data.
 
 ---
 
