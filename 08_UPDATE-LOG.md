@@ -152,7 +152,56 @@
 
 ---
 
-## Planned (as of April 6)
+## April 9, 2026 — Community-Wide Fact-Check, 9 New Findings
+
+**Focus:** Systematic collection and verification of all new issues/comments from April 6-9 (500+ new issues, 168 comments on #42796 alone, 110+ comments on 8 core issues). Full fact-check with evidence strength ratings.
+
+**What was done:**
+- Collected ALL new issues (500+) and comments across 9 core issues from April 6-9
+- Classified each finding by evidence strength: STRONG / MODERATE / WEAK
+- Cross-checked claims against independent sources, verified numerical consistency, identified logical gaps and alternative explanations
+- Corrected factual error in our own Anthropic response bias analysis (see below)
+
+**New bugs added (STRONG — 5 confirmed):**
+- **Bug 8a (JSONL corruption):** Non-atomic writes during concurrent tool execution drop `tool_result` entries → permanent session corruption. 3 independent issues (#45286, #31328, #21321), 10+ duplicates in meta-issue.
+- **Bug 9 (/branch inflation):** `/branch` duplicates message history, inflating 6%→73% context in one message. 3 duplicate issues confirm.
+- **Bug 10 (TaskOutput thrashing):** Deprecation message causes 21x context injection (87K vs 4K) → triple autocompact → fatal error. JSONL log evidence.
+- **Bug 11 (Adaptive thinking zero-reasoning):** bcherny (Anthropic) acknowledged on HN that adaptive thinking can emit zero reasoning → fabrication. Specific examples: stripe API version, git SHA suffix, apt package list. Workaround: `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1`.
+- **Bug 2a (SendMessage cache miss):** Agent SDK `SendMessage` resume produces complete cache miss (`cache_read=0`) including system prompt. Different from CLI resume bug. cnighswonger independently confirmed.
+
+**Preliminary findings added (MODERATE — 4 conditional):**
+- **P1 (Telemetry-TTL coupling):** `DISABLE_TELEMETRY=1` drops cache TTL from 1h to 5m. Anthropic `has repro` label. n=1, mechanism unclear.
+- **P2 (TTL dual tiers):** API returns `ephemeral_1h_input_tokens` / `ephemeral_5m_input_tokens`. Quota crossing appears to trigger downgrade. Second-hand "stuck" reports unverified.
+- **P3 (Output efficiency prompt):** v2.1.64 (Mar 3) added "Try the simplest approach first" to system prompt. Confirmed via [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts). Likely aggravating factor, not sole cause.
+- **P4 (Third-party detection gap):** Raw SDK calls with OAuth bill to plan instead of extra usage. HTTP header evidence. 42+ misclassification issues.
+
+**Key quantitative data from community (with caveats):**
+- **@wpank**: 47,810 requests, $10,700 spend. v2.1.63 vs v2.1.96 = 3.3x cost. *Caveat: unequal session durations (5.15h vs 76min) inflate headline number.*
+- **@cnighswonger**: 4,700 calls, 98.3% cache hit with interceptor. 52-73% of calls needed block relocation, 98% had non-deterministic tool ordering. *Caveat: no controlled before/after baseline.*
+- **v2.1.63 downgrade**: 4 independent confirmations of improvement. *Caveat: breno-ribeiro706 notes "still faster than a month ago" — server-side issues persist regardless of CLI version.*
+
+**Anthropic response (April 6-9):**
+- **bcherny**: 6 comments on #42796 (April 6 only), then complete silence April 7-8
+- Acknowledged: thinking redaction = UI-only, adaptive thinking medium=85 default, duplicate-recording bug fix
+- Did NOT address: system prompt change, v2.1.63 downgrade data, billing routing bug
+- **HN (separate)**: bcherny acknowledged adaptive thinking zero-reasoning bug, model team investigating
+- **All other issues (#38335, #41930, #42542, etc.):** 0 Anthropic responses
+
+**★ Correction — Anthropic response bias:**
+Previous analysis stated bcherny responded "to" stellaraccident (AMD director) within 4 hours. **Fact-check found this is incorrect.** bcherny's first response (Apr 6, 17:55 UTC) came **5 hours before** stellaraccident's first comment (Apr 6, 22:54 UTC). The trigger was HN virality (58 comments/day spike), not corporate affiliation. The actual bias is toward **visibility/virality**, not toward specific individuals. The broader silence pattern remains real: #38335 (478 comments, 15 days, 0 responses), #41930 (49 comments, 8+ days, 0 responses).
+
+**New community tools & repos:**
+- [claude-code-cache-fix](https://github.com/cnighswonger/claude-code-cache-fix) — `NODE_OPTIONS` fetch interceptor fixing block position + tool ordering + image carry-forward (by [@cnighswonger](https://github.com/cnighswonger))
+- [cc-trace](https://github.com/alexfazio/cc-trace) — mitmproxy-based CC API interception + analysis (★152) (by [@alexfazio](https://github.com/alexfazio))
+- [X-Ray-Claude-Code-Interceptor](https://github.com/Renvect/X-Ray-Claude-Code-Interceptor) — Node.js proxy with payload analysis + smart stripping (by [@Renvect](https://github.com/Renvect))
+- [claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) — Version-tracked CC system prompt diffs (by Piebald-AI)
+- [openwolf](https://github.com/cytostack/openwolf) — Token usage stabilization (by cytostack)
+
+**Published:** Bug updates to 01_BUGS.md, 07_TIMELINE.md, 08_UPDATE-LOG.md, 10_ISSUES.md.
+
+---
+
+## Planned (as of April 9)
 
 The following items were identified during the April 1-6 analysis cycle and remain pending:
 

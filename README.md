@@ -2,9 +2,9 @@
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **6 confirmed client-side bugs across 4 layers** that drain usage faster than expected. Cache bugs (B1-B2) are fixed in v2.1.91. Four remain unfixed (B3, B4, B5, B8). Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot** — visible output explains less than half the observed utilization. All findings are backed by proxy-measured data.
+> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. Nine remain unfixed. Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot**. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN. All findings are backed by proxy-measured data and community fact-checking.
 >
-> **Last updated:** April 8, 2026 — Full-week proxy data (17,610 requests), JSONL bulk scan (532 files), budget enforcement 72,839 events, microcompact 3,782 events
+> **Last updated:** April 9, 2026 — 9 new findings (5 STRONG, 4 MODERATE) from community-wide fact-check of 500+ issues filed April 6-9. Anthropic response bias correction. See [08_UPDATE-LOG.md](08_UPDATE-LOG.md) for details.
 
 ---
 
@@ -57,25 +57,30 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ---
 
-## Current Status (April 8, 2026)
+## Current Status (April 9, 2026)
 
 ```mermaid
-pie title Bug Status (7 identified)
+pie title Bug Status (12 identified)
     "Fixed (B1, B2)" : 2
-    "Unfixed (B3, B4, B5, B8)" : 4
+    "Unfixed (B3-B5, B8-B11, B2a, B8a)" : 9
     "By Design (Server)" : 1
 ```
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Four additional client-side bugs and server-side quota changes remain active:
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. Nine client-side bugs and server-side quota changes remain active:
 
-| Bug | What It Does | Impact | Status (v2.1.91) | Details |
-|-----|-------------|--------|-------------------|---------|
+| Bug | What It Does | Impact | Status | Details |
+|-----|-------------|--------|--------|---------|
 | **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
 | **B2** Resume | `--resume` replays full context uncached | Full cache miss per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
+| **B2a** SendMessage | Agent SDK SendMessage resume: full cache miss including system prompt | cache_read=0 on first resume | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
 | **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
-| **B4** Microcompact | Tool results silently cleared mid-session | 3,782 events, 15,998 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled), [13_PROXY-DATA.md](13_PROXY-DATA.md#8-microcompact-bug-4--full-data) |
-| **B5** Budget cap | 200K aggregate limit on tool results | 72,839 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions), [13_PROXY-DATA.md](13_PROXY-DATA.md#7-budget-enforcement-bug-5--full-data) |
-| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.37x avg (max 4.42x), universal | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions), [13_PROXY-DATA.md](13_PROXY-DATA.md#123-extended-thinking-inflation-b8--top-10-largest-sessions) |
+| **B4** Microcompact | Tool results silently cleared mid-session | 3,782 events, 15,998 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled) |
+| **B5** Budget cap | 200K aggregate limit on tool results | 72,839 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions) |
+| **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.37x avg (max 4.42x), universal | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions) |
+| **B8a** JSONL corruption | Concurrent tool execution drops tool_result → permanent 400 | ~10+ duplicates in #21321 | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8a--jsonl-non-atomic-write-corruption-v2185) |
+| **B9** /branch inflation | Message duplication/un-compaction on branch | 6%→73% context in one message | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-9--branch-context-inflation-all-versions) |
+| **B10** TaskOutput thrash | Deprecation message triggers 21x context injection → fatal | 87K vs 4K, triple autocompact | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-10--taskoutput-deprecation--autocompact-thrashing-v2192) |
+| **B11** Zero reasoning | Adaptive thinking emits zero reasoning → fabrication | **Anthropic acknowledged** | Investigating | [01_BUGS.md](01_BUGS.md#bug-11--adaptive-thinking-zero-reasoning-server-side-acknowledged) |
 | **Server** | Quota architecture + thinking token accounting | Reduced effective capacity | **By design** | [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) |
 
 ### What You Can Do

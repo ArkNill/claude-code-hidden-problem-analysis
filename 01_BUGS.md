@@ -2,9 +2,9 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5 and 8 remain **unfixed** as of v2.1.91.
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5 and 8 remain **unfixed** as of v2.1.91. Bugs 8a, 9, 10, 11, 2a added April 9.
 >
-> Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3, 2026.
+> Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
 ---
 
@@ -130,6 +130,8 @@ tengu_summarize_tool_results: true    (system prompt tells model to expect clear
 
 ## Bug 8 — JSONL Log Duplication (all versions)
 
+> **See also Bug 8a below** for a related but distinct JSONL corruption bug discovered April 9.
+
 **GitHub Issue:** [anthropics/claude-code#41346](https://github.com/anthropics/claude-code/issues/41346)
 
 Extended thinking generates **2-5 PRELIM entries** per API call in session JSONL files, with identical `cache_read_input_tokens` and `cache_creation_input_tokens` as the FINAL entry. This inflates local token accounting.
@@ -146,6 +148,144 @@ Extended thinking generates **2-5 PRELIM entries** per API call in session JSONL
 **Bulk scan (April 8, 532 files):** B8 is **universal** — 100% of top 10 largest sessions exhibit PRELIM/FINAL duplication. Average token inflation: **2.37x** (range 1.45x-4.42x). Worst case: 734f00e7 at 4.42x (77% of logged input tokens are duplicated PRELIM entries).
 
 **Open question:** Does the server-side rate limiter count PRELIM entries? If yes, extended thinking sessions are charged 2-3x more against the rate limit than the actual API usage.
+
+---
+
+## Bug 8a — JSONL Non-Atomic Write Corruption (v2.1.85+)
+
+**GitHub Issues:** [#45286](https://github.com/anthropics/claude-code/issues/45286), [#31328](https://github.com/anthropics/claude-code/issues/31328), [#21321](https://github.com/anthropics/claude-code/issues/21321)
+
+**Added:** April 9, 2026
+
+Distinct from Bug 8 (duplication). When Claude Code executes multiple tools concurrently, the JSONL writer can drop `tool_result` entries, creating orphaned `tool_use` blocks. Every subsequent API call fails validation (400 error), making the session **permanently unresumable**.
+
+- Assistant message contains 3 `tool_use` blocks, but following user message contains only 2 `tool_result` blocks — the missing result was never written to disk
+- The meta-issue [#21321](https://github.com/anthropics/claude-code/issues/21321) consolidates **10+ duplicate reports** of the same failure pattern
+- Root cause: non-atomic JSONL writes during concurrent tool execution. Standard fix (temp file + fsync + rename) has not been applied
+
+**Evidence strength:** **STRONG** — three independent issues (#45286, #31328, #21321) describe identical failure patterns across different reporters and versions. The frequency ("~1 in 10 sessions with heavy tool use" per one reporter) is unverified.
+
+---
+
+## Bug 9 — `/branch` Context Inflation (all versions)
+
+**GitHub Issues:** [#45419](https://github.com/anthropics/claude-code/issues/45419), [#40363](https://github.com/anthropics/claude-code/issues/40363), [#36000](https://github.com/anthropics/claude-code/issues/36000)
+
+**Added:** April 9, 2026
+
+`/branch` duplicates or un-compacts message history, inflating context far beyond the parent session's actual size.
+
+**Measured (April 8, @progerzua):**
+- Parent session: **6% context** (59.7K/1M)
+- After `/branch` + **one message**: **73% context** (735K/1M)
+- Only the Messages category inflated (40.5K → 715.6K). All other categories unchanged.
+
+**Root cause (from #40363):** `/branch` writes every message **twice** in the session file — parent had 8,892 lines/33MB, branch immediately 12,050+ lines. A related path (#36000): after autocompaction, `/branch` copies pre-compaction history plus the summary, effectively undoing the compaction.
+
+**Evidence strength:** **STRONG** — three duplicate issues, screenshots + category breakdowns, known root cause. Self-closed as duplicate of existing open issue #40363.
+
+---
+
+## Bug 10 — TaskOutput Deprecation → Autocompact Thrashing (v2.1.92+)
+
+**GitHub Issue:** [#44703](https://github.com/anthropics/claude-code/issues/44703)
+
+**Added:** April 9, 2026
+
+The `TaskOutput` tool's deprecation message instructs agents to `Read` the full sub-agent `.output` file instead of using the summarized Agent tool result. For agent tasks, this injects the entire conversation history.
+
+**Measured:**
+- Agent tool summary: **4,087 chars**
+- Full `.output` file via Read: **87,286 chars** (21x larger)
+- Three consecutive autocompacts of ~167K tokens each → **"Autocompact is thrashing" fatal error**
+
+The logic chain: deprecation message → agent follows instruction → reads full conversation JSON → 87K injected into context → autocompact threshold hit → compact runs → same Read happens again on next notification → thrashing → fatal.
+
+**Evidence strength:** **STRONG** — concrete JSONL log evidence, internally consistent numbers, known failure mode (autocompact thrashing) with existing duplicate #24764. Anthropic labeled `has repro` and closed, but with no engineer comment and no confirmed fix.
+
+---
+
+## Bug 11 — Adaptive Thinking Zero-Reasoning (server-side, acknowledged)
+
+**Source:** [bcherny (Anthropic)](https://news.ycombinator.com/item?id=47668520) on Hacker News, April 6, 2026
+
+**Added:** April 9, 2026
+
+Adaptive thinking (introduced Feb 9, default medium effort=85 since Mar 3) can under-allocate reasoning to **zero** on certain turns, producing fabricated outputs.
+
+**Anthropic acknowledgment (bcherny, HN):**
+> *"The data points at adaptive thinking under-allocating reasoning on certain turns — the specific turns where it fabricated (stripe API version, git SHA suffix, apt package list) had zero reasoning emitted, while the turns with deep reasoning were correct. we're investigating with the model team."*
+
+**Workaround:** `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` (undocumented env var, confirmed present in 8+ issues)
+
+**Evidence strength:** **STRONG** — Anthropic employee (bcherny, `@Anthropic`, "Claude Code @ Anthropic") directly acknowledged the bug on HN with specific fabrication examples. The env var workaround exists and is functional. Multiple users (redknightlois, ylluminate) independently report quality improvement after disabling.
+
+---
+
+## Bug 2a — SendMessage Resume Cache Miss (Agent SDK)
+
+**GitHub Issue:** [#44724](https://github.com/anthropics/claude-code/issues/44724)
+
+**Added:** April 9, 2026
+
+Extends Bug 2 (resume cache breakage) to a different code path: the Agent SDK's `SendMessage` orchestrator call.
+
+**Measured (@labzink):**
+
+| Call | cache_create | cache_read | Status |
+|------|-------------|------------|--------|
+| Agent (1st) | 7,084 | 7,504 | Partial hit (system prompt cached) |
+| SendMessage (2nd, 85s later) | 14,675 | **0** | **Full miss** |
+| SendMessage (3rd) | 83 | 14,675 | Cache hit |
+
+The first `SendMessage` resume always produces `cache_read=0` — a **complete cache miss** including the system prompt. This is more severe than the CLI `--resume` bug (B2), where the system prompt still caches (~8,760 read). [@cnighswonger](https://github.com/cnighswonger) independently confirmed: "nothing caches — not even the system prompt."
+
+The 85-second gap between calls rules out TTL expiry (5-minute minimum). The likely cause is a different system prompt assembly path in the orchestrator vs the direct Agent call.
+
+**Evidence strength:** **STRONG** — clear numerical data, independent confirmation by cnighswonger, explicitly differentiated from CLI resume bug. Single reproduction is the main weakness.
+
+---
+
+## Preliminary Findings (April 9, MODERATE — conditional inclusion)
+
+The following findings have supporting evidence but require additional verification before being classified as confirmed bugs.
+
+### P1 — Telemetry-Cache TTL Coupling
+
+**GitHub Issue:** [#45381](https://github.com/anthropics/claude-code/issues/45381) | **Anthropic label:** `has repro`
+
+Setting `DISABLE_TELEMETRY=1` or `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` causes cache TTL to fall from **1 hour to 5 minutes**. Verified via `ephemeral_1h_input_tokens` vs `ephemeral_5m_input_tokens` in API response usage metadata. Anthropic's triage team applied `has repro` — internal reproduction confirmed.
+
+Combined with [#44850](https://github.com/anthropics/claude-code/issues/44850) (telemetry events getting 429'd), this creates a double bind: enable telemetry and it competes for rate limit budget; disable it and lose 12x cache longevity.
+
+**Caveat:** n=1 (single reporter), causal mechanism unconfirmed. Could be intentional design (1h TTL requires telemetry) rather than a bug.
+
+### P2 — Cache TTL Dual Tiers and Quota-Triggered Downgrade
+
+**Source:** [@cnighswonger](https://github.com/cnighswonger) interceptor data (4,700+ calls)
+
+The Anthropic API returns two distinct cache TTL fields: `ephemeral_1h_input_tokens` and `ephemeral_5m_input_tokens`. Crossing 100% of the 5h quota appears to trigger a silent downgrade from 1h to 5m TTL. On cnighswonger's account, this is bidirectional (reverts after reset). Other users in [#42052](https://github.com/anthropics/claude-code/issues/42052) report the 5m TTL persisting after reset.
+
+**Caveat:** Quota-triggered switch is observational (correlation). The "stuck after reset" claim is second-hand and unverified by cnighswonger directly.
+
+### P3 — "Output Efficiency" System Prompt Change (v2.1.64, March 3)
+
+**Source:** [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) — version-tracked CC system prompt diffs
+
+v2.1.64 (2026-03-03) added an "Output efficiency" section to the default system prompt (+1,291 tokens):
+> *"IMPORTANT: Go straight to the point. Try the simplest approach first without going in circles. Do not overdo it. Be extra concise."*
+
+This correlates with the regression timeline. Multiple users report the model taking shortcuts, applying "simplest fixes," and ignoring deeper analysis — behaviors consistent with following this instruction literally. v2.1.63 (pre-change) is independently confirmed as producing better results by 4+ users (@wpank, @janstenpickle, @diabelko, @breno-ribeiro706).
+
+**Caveat:** The regression was reported "starting in February" by some users, predating this March 3 change. This is likely an **aggravating factor**, not the sole root cause. Multiple overlapping changes (adaptive thinking bug, thinking redaction rollout) complicate attribution.
+
+### P4 — Third-Party App Detection Gap (billing routing)
+
+**GitHub Issue:** [#45380](https://github.com/anthropics/claude-code/issues/45380)
+
+Raw Anthropic SDK calls with OAuth tokens bypass third-party detection and bill to plan allowance instead of extra usage. HTTP header evidence shows `overage-utilization: 0.0` (zero extra usage) while `5h-utilization` increases. 42+ related misclassification issues confirm systemic detection problems in both directions (legitimate CC flagged as third-party, and third-party calls not detected).
+
+**Caveat:** The "blocklist-based" mechanism is the most parsimonious explanation but not directly observed in source code.
 
 ---
 

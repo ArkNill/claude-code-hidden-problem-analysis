@@ -16,8 +16,8 @@
 | **Duration** | 14 months (2025-02 ~ 2026-04-03, ongoing) |
 | **Major escalation cycles** | Multiple across 9 phases (notably Phases 4, 6, 8, and 9) |
 | **Largest issue** | #16157 — 1,422 comments, 647 thumbs_up |
-| **Root causes identified** | 11 client-side + 6 server-side (compound) |
-| **Anthropic official response** | X/Twitter only (Lydia Hallie, April 2-3). Zero GitHub responses across 91+ issues |
+| **Root causes identified** | 16 client-side + 6 server-side (compound) |
+| **Anthropic official response** | X/Twitter (Lydia Hallie, April 2-3) + GitHub #42796 only (bcherny, April 6, 6 comments) + HN (bcherny, adaptive thinking bug acknowledged). Zero responses on #38335/#41930/#42542 and 88+ other issues |
 
 ---
 
@@ -147,7 +147,7 @@ Root causes identified with measured data.
 |------|-------|-------|----------|-----------|-------------|
 | 2026-03-15 | [**#34629**](https://github.com/anthropics/claude-code/issues/34629) | **Prompt cache regression since v2.1.69: cache_read never grows, ~20x cost increase** | 18 | 36 | **ROOT CAUSE #1 confirmed with data** |
 | 2026-03-22 | [#37394](https://github.com/anthropics/claude-code/issues/37394) | Claude Code Usage for Max Plan hitting limits extremely fast | **59** | 35 | March 22 escalation point |
-| 2026-03-24 | [**#38335**](https://github.com/anthropics/claude-code/issues/38335) | **Session limits exhausted abnormally fast since March 23** | **313** | **258** | **Third mega-thread** |
+| 2026-03-24 | [**#38335**](https://github.com/anthropics/claude-code/issues/38335) | **Session limits exhausted abnormally fast since March 23** | **478** | **258** | **Third mega-thread** |
 | 2026-03-24 | [#38357](https://github.com/anthropics/claude-code/issues/38357) | Max 20x: Usage meter climbing abnormally fast — 1-2% per simple message | 8 | 3 | Forensic analysis: cache 92.7% OK but meter still abnormal = server-side issue |
 | 2026-03-29 | [**#40524**](https://github.com/anthropics/claude-code/issues/40524) | **Conversation history invalidated on subsequent turns** | **59** | **197** | **ROOT CAUSE #2: full cache rebuild on every turn** |
 | 2026-03-31 | [#41249](https://github.com/anthropics/claude-code/issues/41249) | Excessive token consumption — usage depleting faster than expected | 9 | 16 | <1 hour to full depletion |
@@ -229,7 +229,7 @@ Anthropic shipped cache-related fixes in v2.1.89-90 without any GitHub issue res
 
 | Version | Fix | Addresses |
 |---------|-----|-----------|
-| v2.1.91 | `_meta["anthropic/maxResultSizeChars"]` up to 500K | Bug 10 — **MCP-only workaround** (built-in tools unaffected) |
+| v2.1.91 | `_meta["anthropic/maxResultSizeChars"]` up to 500K | B5 (#10) — **MCP-only workaround** (built-in tools unaffected) |
 | v2.1.91 | `--resume` transcript chain break fix | Bug 2 (additional fix) |
 | v2.1.91 | Edit tool shorter `old_string` anchors | Output token reduction |
 
@@ -246,7 +246,7 @@ Anthropic shipped cache-related fixes in v2.1.89-90 without any GitHub issue res
 
 These are compound — multiple bugs interact to produce the observed behavior.
 
-Note: The numbering below (1-11) is a chronological discovery order for this timeline. For the actively tracked bugs, the mapping to the B-series identifiers used in [01_BUGS.md](01_BUGS.md) is: #1->B1, #2->B2, #8->B3, #9->B4, #10->B5, #11->B8. Items #3-7 were identified during the investigation but are tracked separately as they relate to older or less reproducible issues.
+Note: The numbering below (1-16) is a chronological discovery order for this timeline. For the actively tracked bugs, the mapping to the B-series identifiers used in [01_BUGS.md](01_BUGS.md) is: #1→B1, #2→B2, #8→B3, #9→B4, #10→B5, #11→B8, #12→B11, #13→B10, #14→B9, #15→B2a, #16→B8a. Items #3-7 were identified during the investigation but are tracked separately as they relate to older or less reproducible issues.
 
 ### Client-Side Bugs
 
@@ -284,7 +284,7 @@ Top issues by community engagement:
 | Issue | Comments | Thumbs Up | Date | Title |
 |-------|----------|-----------|------|-------|
 | [#16157](https://github.com/anthropics/claude-code/issues/16157) | **1,422** | **647** | 2026-01-03 | Instantly hitting usage limits |
-| [#38335](https://github.com/anthropics/claude-code/issues/38335) | **313** | **258** | 2026-03-24 | Session limits exhausted abnormally fast |
+| [#38335](https://github.com/anthropics/claude-code/issues/38335) | **478** | **258** | 2026-03-24 | Session limits exhausted abnormally fast |
 | [#3572](https://github.com/anthropics/claude-code/issues/3572) | **274** | — | 2025-07-15 | 529 Status Codes (server overload) |
 | [#29579](https://github.com/anthropics/claude-code/issues/29579) | **139** | 79 | 2026-02-28 | Rate limit at 16% usage |
 | [#9094](https://github.com/anthropics/claude-code/issues/9094) | **121** | 60 | 2025-10-07 | Silent quota change |
@@ -312,4 +312,43 @@ Each new model release or version update has been a trigger for the next escalat
 
 ---
 
-*Collected 2026-04-02, updated 2026-04-06 (rate limit header analysis, community cross-references, v2.1.89 separation framework). See [README.md](README.md) for root cause analysis and [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) for quota architecture analysis.*
+### April 6-9: Community Acceleration + Anthropic GitHub Response
+
+**#42796 (stellaraccident)** became the focal point — 168 new comments across April 6-8, HN viral amplification. **bcherny (Anthropic, Claude Code lead)** posted 6 comments on April 6 only:
+- Confirmed `redact-thinking` is UI-only, does not impact thinking budgets
+- Confirmed adaptive thinking medium effort=85 default (since Mar 3)
+- Confirmed "no internal changes I'm aware of that could have caused this"
+- Offered workarounds: `/effort high|max`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW=400000`, `CLAUDE_CODE_SIMPLE=1`
+- **HN (separate):** acknowledged adaptive thinking zero-reasoning bug → fabrication on specific turns. Model team investigating. Workaround: `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1`
+- **April 7-8:** Complete silence across all issues
+
+**New root causes discovered (April 6-9):**
+
+| # | Root Cause | Issue | Evidence | Impact |
+|---|-----------|-------|---------|--------|
+| 12 | **Adaptive thinking zero-reasoning** — zero reasoning emitted on certain turns → fabrication | HN (bcherny) | **Anthropic acknowledged** | Hallucinated outputs (stripe API versions, git SHAs, apt packages). Workaround: `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1` |
+| 13 | **TaskOutput deprecation → autocompact thrashing** — deprecation message causes 21x context injection | [#44703](https://github.com/anthropics/claude-code/issues/44703) | JSONL log evidence, `has repro` | Fatal error after 3 consecutive autocompacts. 87K vs 4K chars |
+| 14 | **`/branch` context inflation** — message duplication/un-compaction on branch | [#45419](https://github.com/anthropics/claude-code/issues/45419), [#40363](https://github.com/anthropics/claude-code/issues/40363) | 3 duplicate issues | 6%→73% context in one message |
+| 15 | **SendMessage cache full miss** — orchestrator SendMessage produces cache_read=0 | [#44724](https://github.com/anthropics/claude-code/issues/44724) | Numerical data + cnighswonger confirmed | Distinct from CLI resume (B2): not even system prompt caches |
+| 16 | **JSONL non-atomic write → session corruption** — concurrent tool execution drops tool_result entries | [#45286](https://github.com/anthropics/claude-code/issues/45286), [#21321](https://github.com/anthropics/claude-code/issues/21321) | 10+ duplicates in meta-issue | Permanent 400 error, session unresumable |
+
+**Preliminary findings (MODERATE, verification pending):**
+
+| # | Finding | Issue | Status |
+|---|---------|-------|--------|
+| P1 | Disabling telemetry drops cache TTL from 1h to 5m | [#45381](https://github.com/anthropics/claude-code/issues/45381) | Anthropic `has repro`, n=1 |
+| P2 | API exposes dual TTL tiers (`ephemeral_1h` / `ephemeral_5m`), quota crossing may trigger downgrade | cnighswonger data | Observational |
+| P3 | v2.1.64 (Mar 3) added "Try the simplest approach first" to system prompt | [Piebald-AI repo](https://github.com/Piebald-AI/claude-code-system-prompts) | Confirmed change, causal link unproven |
+| P4 | Raw SDK calls bypass third-party detection, bill to plan instead of extra usage | [#45380](https://github.com/anthropics/claude-code/issues/45380) | HTTP header evidence, 42+ related issues |
+
+**Key data points (April 6-9):**
+- @wpank: 47,810 requests tracked, v2.1.63 vs v2.1.96 = 3.3x cost (caveat: session length mismatch)
+- @cnighswonger: 4,700 calls, 98.3% cache hit with interceptor, 98% of calls had non-deterministic tool ordering
+- @mann1x: Received 170 EUR credit from Anthropic (Max 20x, excess consumption)
+- 500+ new issues filed April 6-9 — dominant themes: token consumption crisis, third-party billing misclassification, model quality regression
+
+**★ Correction:** Our earlier characterization of bcherny's response as "responding to AMD director stellaraccident" was factually incorrect. bcherny responded 5 hours **before** stellaraccident's first comment. The trigger was HN virality, not corporate affiliation. See [08_UPDATE-LOG.md](08_UPDATE-LOG.md) for details.
+
+---
+
+*Collected 2026-04-02, updated 2026-04-09 (9 new findings, Anthropic GitHub response, community fact-check, response bias correction). See [README.md](README.md) for root cause analysis and [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) for quota architecture analysis.*

@@ -2,7 +2,7 @@
 
 # Related Issues, Community Tools & Contributors
 
-> As of April 6, 2026: **180+ comments on 91+ unique issues**. Anthropic official response on GitHub: **zero**.
+> As of April 9, 2026: **91+ tracked issues + 500+ new issues (Apr 6-9)**. Anthropic GitHub response: **bcherny on #42796 only** (6 comments, Apr 6). Zero on all other issues.
 
 ---
 
@@ -30,6 +30,18 @@
 - [#42256](https://github.com/anthropics/claude-code/issues/42256) — Read tool re-sends oversized images every message
 - [#42590](https://github.com/anthropics/claude-code/issues/42590) — Context compaction too aggressive on 1M context window
 
+### New Bugs (April 9)
+- [#45419](https://github.com/anthropics/claude-code/issues/45419) — **`/branch` context inflation** (Bug 9: 6%→73% after one message, 3 duplicate issues) — **unfixed**
+- [#44703](https://github.com/anthropics/claude-code/issues/44703) — **TaskOutput deprecation → autocompact thrashing** (Bug 10: 21x context injection, fatal error) — **closed without fix confirmation**
+- [#44724](https://github.com/anthropics/claude-code/issues/44724) — **SendMessage resume cache full miss** (Bug 2a: `cache_read=0` including system prompt, distinct from CLI resume) — **unfixed**
+- [#45286](https://github.com/anthropics/claude-code/issues/45286) — **JSONL non-atomic write → session corruption** (Bug 8a: concurrent tool execution drops tool_result, 10+ duplicates in [#21321](https://github.com/anthropics/claude-code/issues/21321)) — **unfixed**
+- Adaptive thinking zero-reasoning (Bug 11) — **acknowledged by Anthropic on HN**, model team investigating. Workaround: `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1`
+
+### Preliminary Findings (April 9, verification pending)
+- [#45381](https://github.com/anthropics/claude-code/issues/45381) — Disabling telemetry drops cache TTL 1h→5m (Anthropic `has repro`)
+- [#45380](https://github.com/anthropics/claude-code/issues/45380) — Raw SDK calls bypass third-party detection, bill to plan instead of extra usage (42+ related misclassification issues)
+- v2.1.64 (Mar 3): "Output efficiency" system prompt change — [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) tracks the diff
+
 ### Session Loading / JSONL Pipeline
 - [#43044](https://github.com/anthropics/claude-code/issues/43044) — **`--resume` loads 0% context on v2.1.91** — three regressions in session loading pipeline (by [@kolkov](https://github.com/kolkov))
 
@@ -42,7 +54,9 @@
 
 ## Anthropic Official Response
 
-**GitHub:** Zero responses across 91+ rate-limit issues (2+ months of silence).
+**GitHub (updated April 9):** bcherny responded 6 times on [#42796](https://github.com/anthropics/claude-code/issues/42796) on April 6 (the day it went viral on HN with 58 comments). Zero responses on all other issues — including #38335 (478 comments, 15 days), #41930 (49 comments, 8+ days), and #42542. After April 6, bcherny went silent on GitHub as well (April 7-8: zero comments).
+
+**HN (April 6):** bcherny acknowledged adaptive thinking has a zero-reasoning bug causing fabrication. "We're investigating with the model team." This is the only confirmed bug acknowledgment from Anthropic during the April 6-9 period.
 
 **April 2, 2026 — Lydia Hallie (Anthropic, Product) posted on X:**
 
@@ -76,6 +90,16 @@
 - [BudMon](https://github.com/weilhalt/budmon) — Desktop dashboard for rate-limit header monitoring
 - [claude-usage-dashboard](https://github.com/fgrosswig/claude-usage-dashboard) — Standalone Node.js JSONL dashboard with forensic analysis, multi-host aggregation, and implicit budget estimation (by [@fgrosswig](https://github.com/fgrosswig))
 - [Resume cache fix patch](https://gist.github.com/simpolism/302621e661f462f3e78684d96bf307ba) — Fixes two remaining `--resume` cache misses on v2.1.91 (by [@simpolism](https://github.com/simpolism))
+
+### Interception & Cache Fix Tools (April 6-9)
+- [claude-code-cache-fix](https://github.com/cnighswonger/claude-code-cache-fix) — `NODE_OPTIONS` fetch interceptor: normalizes block positions, sorts tool definitions, strips image carry-forward. 98.3% cache hit reported (by [@cnighswonger](https://github.com/cnighswonger))
+- [cc-trace](https://github.com/alexfazio/cc-trace) — mitmproxy-based CC API interception, debugging, and analysis (★152) (by [@alexfazio](https://github.com/alexfazio))
+- [X-Ray-Claude-Code-Interceptor](https://github.com/Renvect/X-Ray-Claude-Code-Interceptor) — Node.js proxy with real-time dashboard + "smart stripping" of outdated tool results (by [@Renvect](https://github.com/Renvect))
+- [openwolf](https://github.com/cytostack/openwolf) — Token usage stabilization (by cytostack)
+
+### System Prompt & Context Analysis
+- [claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) — Version-tracked CC system prompt diffs with release notes (by Piebald-AI)
+- [context-engineering-papers](https://github.com/borcho23/context-engineering-papers) — Root Theorem: formal framework for context fidelity degradation (by [@borcho23](https://github.com/borcho23))
 
 ### Token Optimization Tools
 - [rtk](https://github.com/rtk-ai/rtk) — Tool output compression
@@ -207,7 +231,6 @@ This analysis builds on work by many community members who independently investi
 |-----|-------------|
 | [@Sn3th](https://github.com/Sn3th) | Discovered the three microcompact mechanisms (Bug 4), GrowthBook flag extraction, `applyToolResultBudget()` pipeline (Bug 5), confirmed server-side context mutation across multiple machines |
 | [@rwp65](https://github.com/rwp65) | Discovered the client-side false rate limiter (Bug 3) with detailed log evidence |
-| [@arizonawayfarer](https://github.com/arizonawayfarer) | Windows GrowthBook flag dumps confirming cross-platform consistency |
 | [@dbrunet73](https://github.com/dbrunet73) | Real-world OTel comparison data (v2.1.88 vs v2.1.90) confirming cache improvement |
 | [@maiarowsky](https://github.com/maiarowsky) | Confirmed Bug 3 on v2.1.90 with 26 synthetic entries across 13 sessions |
 | [@luongnv89](https://github.com/luongnv89) | Cache TTL analysis, built [CUStats](https://custats.info) and [context-stats](https://github.com/luongnv89/cc-context-stats) |
@@ -222,5 +245,13 @@ This analysis builds on work by many community members who independently investi
 | [@fgrosswig](https://github.com/fgrosswig) | 64x budget reduction forensics — dual-machine 18-day JSONL before/after comparison ([#38335](https://github.com/anthropics/claude-code/issues/38335#issuecomment-4189537353)) |
 | [@Commandershadow9](https://github.com/Commandershadow9) | Confirmed cache fix, documented 34-143x capacity reduction, raised thinking token hypothesis ([#41506](https://github.com/anthropics/claude-code/issues/41506#issuecomment-4189508296)) |
 | Reddit community | [Reverse engineering analysis](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6) of cache sentinel mechanism |
+| [@cnighswonger](https://github.com/cnighswonger) | Built [claude-code-cache-fix](https://github.com/cnighswonger/claude-code-cache-fix) interceptor — 4,700 calls measured, 98.3% cache hit, quantified block scatter (52-73%) and tool ordering (98%) cache-busting, identified image carry-forward bug (37 images/266K tokens), TTL tier detection via `ephemeral_1h`/`ephemeral_5m` fields |
+| [@bilby91](https://github.com/bilby91) | [#44045](https://github.com/anthropics/claude-code/issues/44045) original reporter — identified `skill_listing` + `companion_intro` cache miss on resume, extended to Agent SDK `query()` path |
+| [@labzink](https://github.com/labzink) | [#44724](https://github.com/anthropics/claude-code/issues/44724) — identified SendMessage cache full miss (Bug 2a), provided per-call cache metrics distinguishing from CLI resume bug |
+| [@wpank](https://github.com/wpank) | 47,810 requests tracked via gateway, quantitative v2.1.63 vs v2.1.96 comparison ($10,700 total spend), identified 18% broken caching ($927 wasted) |
+| [@wjordan](https://github.com/wjordan) | Identified "Output efficiency" system prompt change in v2.1.64 via [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts) |
+| [@EmpireJones](https://github.com/EmpireJones) | [#45381](https://github.com/anthropics/claude-code/issues/45381) — discovered telemetry-cache TTL coupling (Anthropic `has repro`) |
+| [@arizonawayfarer](https://github.com/arizonawayfarer) | Windows GrowthBook flag dumps confirming cross-platform consistency, JSONL `acompact-*` tool duplication analysis (35% rate) |
+| [@progerzua](https://github.com/progerzua) | [#45419](https://github.com/anthropics/claude-code/issues/45419) — `/branch` context inflation measurement (6%→73%, category breakdown) |
 
 *This analysis is based on community research and personal measurement. It is not endorsed by Anthropic. All workarounds use only official tools and documented features.*
