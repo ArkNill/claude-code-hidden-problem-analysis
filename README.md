@@ -2,7 +2,7 @@
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.101** (latest, 8 releases later). The "Output efficiency" system prompt (P3) has been quietly removed — confirmed by scanning 353 local session files. Proxy data now covers **20,083 requests** over 10 days, with `fallback-percentage: 0.5` on every single one. 79% of new sessions still start with a full cache miss on the first turn, even post-fix. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
+> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.101** (latest, 8 releases later). The "Output efficiency" system prompt (P3) has been quietly removed — confirmed by scanning 353 local session files. Proxy data now covers **27,708 requests** over 13 days, with `fallback-percentage: 0.5` on every single one. 79% of new sessions still start with a full cache miss on the first turn, even post-fix. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
 >
 > **Last updated:** April 13, 2026 — see [changelog cross-reference](01_BUGS.md#changelog-cross-reference-v2192v21101) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
 
@@ -59,7 +59,7 @@ cc-relay proxy database now covers **17,610 requests** across **129 sessions** (
 
 ### Rate limit header analysis — [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)
 
-Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers across **20,083 requests** (April 4-13), revealing the server-side quota architecture:
+Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers across **27,708 requests** (April 1-13), revealing the server-side quota architecture:
 
 **Dual sliding window system:**
 - Two independent counters: **5-hour** (`5h-utilization`) and **7-day** (`7d-utilization`)
@@ -103,8 +103,8 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs 
 | **B2** Resume | `--resume` replays full context uncached | Full cache miss per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
 | **B2a** SendMessage | Agent SDK SendMessage resume: full cache miss including system prompt | cache_read=0 on first resume | **Possibly Fixed** | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
 | **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
-| **B4** Microcompact | Tool results silently cleared mid-session | 3,782 events, 15,998 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled) |
-| **B5** Budget cap | 200K aggregate limit on tool results | 72,839 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions) |
+| **B4** Microcompact | Tool results silently cleared mid-session | 5,500 events, 18,858 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled) |
+| **B5** Budget cap | 200K aggregate limit on tool results | 167,818 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions) |
 | **B8** Log inflation | Extended thinking duplicates JSONL entries | 2.37x avg (max 4.42x), universal | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8--jsonl-log-duplication-all-versions) |
 | **B8a** JSONL corruption | Concurrent tool execution drops tool_result → permanent 400 | ~10+ duplicates in #21321 | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-8a--jsonl-non-atomic-write-corruption-v2185) |
 | **B9** /branch inflation | Message duplication/un-compaction on branch | 6%→73% context in one message | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-9--branch-context-inflation-all-versions) |
@@ -212,7 +212,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), HP ZBook Ultra G1a
 - **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.101**
-- **Monitoring:** cc-relay v2 transparent proxy (20,083 requests with rate limit headers as of April 13; 26,910 total requests)
+- **Monitoring:** cc-relay v2 transparent proxy (27,708 total requests across 218 sessions, April 1–13)
 - **Date:** April 13, 2026
 
 ---

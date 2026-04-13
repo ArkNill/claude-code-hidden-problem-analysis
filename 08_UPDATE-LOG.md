@@ -244,7 +244,7 @@ Scanned all 353 local JSONL session files for the exact "Output efficiency" text
 The text is gone. Can't pin the exact version (v2.1.99/100 don't exist), and the changelog doesn't mention it. First spotted by @wjordan (external, not Anthropic) via the Piebald-AI system prompt archive. Updated P3 status from PRELIMINARY to OBSERVED REMOVED.
 
 **Proxy data extended:**
-cc-relay kept running during my absence. Queried usage.db: **20,083 requests with rate limit headers** (April 4–13, 10 days). `fallback-percentage` = 0.5 on all 20,083 — same as the initial 3,702-request sample, just 5x more data and 3x longer observation window. Also noted community cross-account data from #41930 (cnighswonger 11,502 calls Max 5x, 0xNightDev Max 5x EU) — included as reference with explicit caveat that the field's meaning is undocumented.
+cc-relay kept running during my absence and continues collecting. Queried usage.db: **27,708 total requests** across **218 sessions** (April 1–13, 13 days). `fallback-percentage` = 0.5 on all requests with headers — same as the initial 3,702-request sample, just 7x more data. Also noted community cross-account data from #41930 (cnighswonger 11,502 calls Max 5x, 0xNightDev Max 5x EU) — included as reference with explicit caveat that the field's meaning is undocumented.
 
 **First-turn cache miss measurement:**
 Queried usage.db for first-turn `cache_read` across sessions with ≥3 requests: **113/143 (79%) start with cache_read=0**. This explains why users still complain about first-turn costs on v2.1.91+ even though B1/B2 are fixed. Community analysis (#47098 by @wadabum) identified the structural cause: skills and CLAUDE.md land in `messages[0]` instead of `system[]`, breaking prefix-based caching. Newer versions are improving this (community data shows ~29% zero-read on v2.1.104), but we measured 79% across our mixed-version dataset.
@@ -260,7 +260,7 @@ The 3 days I was away were intense. #42796 saw a wave of subscription cancellati
 
 Carried forward from April 9, with updates:
 
-- ~~Continue rate limit header data collection through April 10~~ ✅ Done (20,083 requests through April 13)
+- ~~Continue rate limit header data collection through April 10~~ ✅ Done (27,708 requests through April 13)
 - ~~Verify P3 "Output efficiency" prompt~~ ✅ Done (OBSERVED REMOVED, 353 JSONL scan)
 - **Thinking token isolation test**: still pending. Run sessions with `alwaysThinkingEnabled: false` and compare per-1% utilization cost
 - **v2.1.92+ JSONL verification:** Check if B8 PRELIM duplication is reduced in transcript

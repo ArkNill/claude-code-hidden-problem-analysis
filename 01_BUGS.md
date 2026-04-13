@@ -90,7 +90,7 @@ Three compaction mechanisms in `src/services/compact/` run **silently on every A
 - All three bypass `DISABLE_AUTO_COMPACT` and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`
 - Controlled by **server-side GrowthBook A/B testing flags** — Anthropic can change behavior without a client update
 - Tool results silently replaced with `[Old tool result content cleared]` — no compaction notification shown
-- **3,782 clearing events** (15,998 items cleared) detected via proxy (April 1-8 snapshot). Bug discovered April 2; proxy started April 1. Previously 327 (April 3 focused test only)
+- **5,500 clearing events** (18,858 items cleared) detected via proxy (April 1-13). Bug discovered April 2; proxy started April 1. Previously 327 (April 3 focused test only)
 - All cleared indices are **even-numbered** → targets tool_use/tool_result pairs specifically
 - Cleared indices **expand over time** as conversation grows
 
@@ -127,7 +127,7 @@ tengu_summarize_tool_results: true    (system prompt tells model to expect clear
 ```
 
 **Measured impact:**
-- **72,839 budget events** across 20 sessions (April 1-8 snapshot). Previously 261 in a single session (April 3)
+- **167,818 budget events** across 218 sessions (April 1-13). Previously 261 in a single session (April 3)
 - **100% truncation rate** — every event results in content reduction
 - **90.6% of events** truncate to 11-100 chars; 9.4% to 0-10 chars (average: 24 chars)
 - Budget threshold exceeded at **242,094 chars** (> 200K cap)
@@ -323,7 +323,7 @@ xychart-beta
     bar [3129,3782,72839,532]
 ```
 
-> B3: 3,129 rate limit text occurrences across 257/532 files (183 files contain `<synthetic>` model entries specifically). B4: 3,782 clearing events (15,998 items). B5: 72,839 truncation events (100% rate). B8: universal across all 532 analyzed files (2.37x avg inflation). Full data: [13_PROXY-DATA.md](13_PROXY-DATA.md).
+> B3: 3,129 rate limit text occurrences across 257/532 files (183 files contain `<synthetic>` model entries specifically). B4: 5,500 clearing events (18,858 items). B5: 167,818 truncation events (100% rate). B8: universal across all 532 analyzed files (2.37x avg inflation). Full data: [13_PROXY-DATA.md](13_PROXY-DATA.md).
 
 ---
 
