@@ -2,13 +2,25 @@
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.97** (latest). Six releases (v2.1.92–97) shipped zero fixes for token accounting, context mutation, or log integrity bugs. Additionally, proxy-captured rate limit headers reveal a **dual 5h/7d window quota system** with a significant **thinking token blind spot**. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
+> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.101** (latest, 8 releases later). The "Output efficiency" system prompt (P3) has been quietly removed — confirmed by scanning 353 local session files. Proxy data now covers **20,083 requests** over 10 days, with `fallback-percentage: 0.5` on every single one. 79% of new sessions still start with a full cache miss on the first turn, even post-fix. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
 >
-> **Last updated:** April 9, 2026 — Changelog cross-reference (v2.1.92–97) confirms no unfixed bug was addressed across 6 releases. See [01_BUGS.md — Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
+> **Last updated:** April 13, 2026 — see [changelog cross-reference](01_BUGS.md#changelog-cross-reference-v2192v21101) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
 
 ---
 
-## Latest Update (April 9)
+## Latest Update (April 13)
+
+### April 13 — v2.1.101 cross-reference, "Output efficiency" gone, 20K fallback-percentage data point
+
+Caught up on v2.1.98 and v2.1.101 (v2.1.99/100 don't exist — skipped in the public changelog). Two more releases, still zero fixes for B3–B11. v2.1.98 was mostly security patches (Bash permission bypasses). v2.1.101 fixed resume and MCP bugs — B2a (SendMessage cache miss) **may** be fixed via the CLI resume path, but the Agent SDK code path is unconfirmed. [Changelog cross-reference →](01_BUGS.md#changelog-cross-reference-v2192v21101)
+
+The "Output efficiency" system prompt section (P3) appears to be gone. Scanned all **353 local JSONL session files** — every session after April 10 shows zero occurrences of the "straight to the point" / "do not overdo" text. The April 8-9 boundary is messy (mixed PRESENT/ABSENT on the same day, likely from running two CC versions concurrently), but after April 10 it's clean. First noticed by [@wjordan](https://github.com/wjordan) via system prompt archive diffing. [P3 update →](01_BUGS.md#p3--output-efficiency-system-prompt-change-v2164-march-3)
+
+Extended the `fallback-percentage` dataset from 3,702 to **20,083 requests** (April 4–13, 10 days). Still 0.5 on every single request, zero variance. Community researchers [@cnighswonger](https://github.com/cnighswonger) (11,502 calls, Max 5x US) and [@0xNightDev](https://github.com/0xNightDev) (Max 5x EU) also report 0.5 — but with a notable difference: our account and cnighswonger's show `overage-status: allowed`, while 0xNightDev's shows `rejected`. Same plan, different org-level flags. What `fallback-percentage` actually *means* remains undocumented. [Full data →](02_RATELIMIT-HEADERS.md#8-extended-fallback-percentage-data-april-13-update-self-measured)
+
+Also measured first-turn cache performance across 143 sessions (≥3 requests each): **79% start with `cache_read=0`** on the first API call, even on v2.1.91+ where B1/B2 are fixed. This is structural — skills and CLAUDE.md land in `messages[0]` instead of the `system[]` prefix, breaking prefix-based caching for new sessions. Newer versions are improving this (community data shows ~29% on v2.1.104), but it's still a significant first-turn cost. [Details →](01_BUGS.md#note-residual-first-turn-cache-miss-post-fix-self-measured-april-13)
+
+---
 
 ### April 9 — 5 new bugs, 4 preliminary findings, changelog cross-reference
 
@@ -47,7 +59,7 @@ cc-relay proxy database now covers **17,610 requests** across **129 sessions** (
 
 ### Rate limit header analysis — [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)
 
-Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers across **3,702 requests** (April 4-6), revealing the server-side quota architecture:
+Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers across **20,083 requests** (April 4-13), revealing the server-side quota architecture:
 
 **Dual sliding window system:**
 - Two independent counters: **5-hour** (`5h-utilization`) and **7-day** (`7d-utilization`)
@@ -73,22 +85,23 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ---
 
-## Current Status (April 9, 2026 — verified through v2.1.97)
+## Current Status (April 13, 2026 — verified through v2.1.101)
 
 ```mermaid
-pie title Bug Status (12 identified, verified through v2.1.97)
+pie title Bug Status (12 identified, verified through v2.1.101)
     "Fixed (B1, B2)" : 2
-    "Unfixed (B3-B5, B8-B11, B2a, B8a)" : 9
+    "Unfixed (B3-B5, B8-B11, B8a)" : 8
+    "Possibly Fixed (B2a)" : 1
     "By Design (Server)" : 1
 ```
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Nine client-side bugs remain unfixed through v2.1.97** (latest, 6 releases later). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197).
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.101** (latest, 8 releases later). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
 
 | Bug | What It Does | Impact | Status | Details |
 |-----|-------------|--------|--------|---------|
 | **B1** Sentinel | Standalone binary corrupts cache prefix | 4-17% cache read (v2.1.89) | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-1--sentinel-replacement-standalone-binary-only) |
 | **B2** Resume | `--resume` replays full context uncached | Full cache miss per resume | **Fixed** | [01_BUGS.md](01_BUGS.md#bug-2--resume-cache-breakage-v2169) |
-| **B2a** SendMessage | Agent SDK SendMessage resume: full cache miss including system prompt | cache_read=0 on first resume | **Unclear** | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
+| **B2a** SendMessage | Agent SDK SendMessage resume: full cache miss including system prompt | cache_read=0 on first resume | **Possibly Fixed** | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
 | **B3** False RL | Client blocks API calls with fake error | Instant "Rate limit reached" | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-3--client-side-false-rate-limiter-all-versions) |
 | **B4** Microcompact | Tool results silently cleared mid-session | 3,782 events, 15,998 items cleared | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-4--silent-microcompact--context-quality-degradation-all-versions-server-controlled) |
 | **B5** Budget cap | 200K aggregate limit on tool results | 72,839 events, 100% truncation | **Unfixed** | [01_BUGS.md](01_BUGS.md#bug-5--tool-result-budget-enforcement-all-versions) |
@@ -101,7 +114,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Nine client-side bugs r
 
 ### What You Can Do
 
-1. **Update to v2.1.91+** — fixes the cache regression (worst drain). v2.1.92–97 add no bug fixes for issues tracked here but are safe to use
+1. **Update to v2.1.91+** — fixes the cache regression (worst drain). v2.1.92–101 add no bug fixes for issues tracked here but are safe to use
 2. **npm or standalone — both fine on v2.1.91** (Sentinel gap closed)
 3. **Don't use `--resume` or `--continue`** — replays full context as billable input
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
@@ -180,13 +193,13 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 | File | What | Updated |
 |------|------|---------|
-| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 4 preliminary (P1-P4) + changelog cross-reference (v2.1.92-97) | Apr 9 |
+| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 4 preliminary (P1-P4) + changelog cross-reference (v2.1.92-101) | Apr 13 |
 | **[09_QUICKSTART.md](09_QUICKSTART.md)** | Quick fix guide — Option A (v2.1.91+) vs Option B (v2.1.63 downgrade), npm vs standalone, diagnosis | Apr 9 |
 | **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle (Phase 1-9) + April 6-9 community acceleration + Anthropic response | Apr 9 |
 | **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | Apr 9 |
 | **[10_ISSUES.md](10_ISSUES.md)** | 91+ tracked issues + community tools + contributors | Apr 9 |
 | **[13_PROXY-DATA.md](13_PROXY-DATA.md)** | Full-week proxy dataset (17,610 requests, 129 sessions) with Mermaid visualizations | Apr 8 |
-| **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot | Apr 6 |
+| **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot, fallback-percentage extended data | Apr 13 |
 | **[03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
 | **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 3 |
 | **[04_BENCHMARK.md](04_BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
@@ -198,9 +211,9 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), Linux workstation (ubuntu-1)
-- **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.97**
-- **Monitoring:** cc-relay v2 transparent proxy (17,610 requests, 11,420 with rate limit headers as of April 8)
-- **Date:** April 9, 2026
+- **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.101**
+- **Monitoring:** cc-relay v2 transparent proxy (20,083 requests with rate limit headers as of April 13; 26,910 total requests)
+- **Date:** April 13, 2026
 
 ---
 

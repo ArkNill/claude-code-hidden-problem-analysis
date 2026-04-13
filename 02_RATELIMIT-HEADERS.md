@@ -175,11 +175,53 @@ Both analyses measure **client-side token consumption** (what was sent/received)
 
 ---
 
-## 8. Next Steps
+## 8. Extended `fallback-percentage` Data (April 13 update, self-measured)
 
-- **April 10:** Full 7-day cycle completes — publish comprehensive weekly analysis
+> **Added:** April 13, 2026 — extended proxy data from our own cc-relay, plus community cross-account observations from [#41930](https://github.com/anthropics/claude-code/issues/41930).
+
+Section 1 documented `fallback-percentage` = `0.5` across our initial 3,702-request sample (April 4–6). Our proxy has now accumulated **20,083 requests** (April 4–13, 10 days). The field remains **0.5 on every single request — zero variance across the entire dataset.**
+
+| Metric | Value |
+|--------|-------|
+| Total requests with headers | **20,083** |
+| `fallback-percentage` = 0.5 | **20,083 (100%)** |
+| `overage-status` = allowed | **20,083 (100%)** |
+| Date range | April 4 – April 13, 2026 |
+| Plan | Max 20x ($200/mo) |
+| Source | cc-relay proxy (our own) |
+
+### Community cross-account observations (not our data — reference only)
+
+Starting April 11, two independent researchers published cross-account data in [#41930](https://github.com/anthropics/claude-code/issues/41930):
+
+| Observer | Plan | Region | Calls | Value | overage-status | Note |
+|----------|------|--------|-------|-------|----------------|------|
+| [@cnighswonger](https://github.com/cnighswonger) | Max 5x | US (IAD) | 11,502¹ | 0.5 | allowed | claude-code-cache-fix + claude-meter interceptor |
+| [@0xNightDev](https://github.com/0xNightDev) | Max 5x | EU (AMS) | qualitative² | 0.5 | **rejected** (org_level_disabled) | claude-usage-dashboard |
+| [#12829](https://github.com/anthropics/claude-code/issues/12829) | unknown | unknown | 1 | **0.2** | rejected (org_level_disabled) | Nov 2025, v2.0.50 |
+
+¹ 11,502 of 11,505 rows contained the field; 3 were bootstrap calls where the field was not yet populated.
+² 0xNightDev stated "every single request" but did not provide a numerical count.
+
+### What we know
+
+1. **Consistency within accounts:** Our 20,083 requests over 10 days and cnighswonger's 11,502 over 7 days both show zero variance. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
+2. **Variation across time:** 0.2 in November 2025 (#12829) vs 0.5 in April 2026 — the value can change over time.
+3. **`overage-status` diverges across accounts on the same plan:** Our Max 20x and cnighswonger's Max 5x both show `allowed`, while 0xNightDev's Max 5x shows `rejected` + `org_level_disabled`.
+
+### What we don't know
+
+The **exact semantics** of `fallback-percentage` are undocumented by Anthropic. Community interpretations include: multiplicative quota cap (0.5 = 50% of theoretical max), fallback routing fraction, or post-exhaustion degradation threshold. [@cnighswonger cautioned](https://github.com/anthropics/claude-code/issues/41930#issuecomment-4230013175): *"Your three interpretations are all defensible and we can't distinguish them from the data we have."*
+
+**We document the observed values without endorsing any interpretation.** Absent official documentation, treating any specific interpretation as fact would undermine the evidentiary standard of this repository. No Anthropic response to any comment in #41930 regarding this field as of April 13.
+
+---
+
+## 9. Next Steps
+
 - **Thinking token isolation test:** Run sessions with thinking disabled and compare per-1% cost
 - **Cross-tier comparison:** If community members on other plan tiers run proxies, we can compare per-1% costs across plans
+- **`fallback-percentage` monitoring:** Track whether the value changes over time on our account
 
 ---
 
