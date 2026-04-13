@@ -348,6 +348,20 @@ Each new model release or version update has been a trigger for the next escalat
 
 **★ Correction:** Our earlier characterization of bcherny's response as "responding to AMD director stellaraccident" was factually incorrect. bcherny responded 5 hours **before** stellaraccident's first comment. The trigger was HN virality, not corporate affiliation. See [08_UPDATE-LOG.md](08_UPDATE-LOG.md) for details.
 
+### April 10-13 — Continued silence, community self-organizes
+
+Two more CC releases (v2.1.98, v2.1.101) — still zero fixes for B3–B11. No Anthropic MEMBER response on any tracked issue during this period. The only near-official signal was @wjordan (external contributor, `author_association: NONE`) noting via the Piebald-AI system prompt archive that the "Output efficiency" section (P3) had been removed from the system prompt somewhere between v2.1.98 and v2.1.101.
+
+Meanwhile the community kept building. @cnighswonger shipped cache-fix v1.7.1 with fgrosswig dashboard interop. @fgrosswig shipped usage-dashboard v1.6.0 with quota divisor analysis. @0xNightDev (EU) confirmed `fallback-percentage: 0.5` via transparent proxy — cnighswonger independently verified across 11,502 API calls over 7 days with zero variance. The meaning of this field remains undocumented; community interpretations range from "50% effective capacity" to "fallback routing fraction" — none confirmed.
+
+#42796 (325 comments, 1,567 thumbs up, still closed) saw a wave of subscription cancellations and explicit migration to Codex/GLM 5.1/Kimi 2.5. Multiple safety incidents reported: irreversible blockchain transfer (#46947), model self-generating prompt injection (#46971), Looker dashboard mass deletion (comment in #42796). @0xNightDev prepared EU consumer protection documentation.
+
+**Our data (self-measured April 13):**
+- `fallback-percentage` extended to **20,083 requests** (April 4-13): 0.5 on every request, zero variance
+- P3 "Output efficiency" **absent** in all ~30 sessions after April 10 (353 JSONL files scanned)
+- First-turn `cache_read=0`: **79%** (113/143 sessions ≥3 requests)
+- Changelog cross-reference extended through v2.1.101: zero unfixed bug fixes. B2a → POSSIBLY FIXED
+
 ---
 
-*Collected 2026-04-02, updated 2026-04-09 (9 new findings, Anthropic GitHub response, community fact-check, response bias correction). See [README.md](README.md) for root cause analysis and [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) for quota architecture analysis.*
+*Collected 2026-04-02, updated 2026-04-13. See [README.md](README.md) for root cause analysis, [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) for quota architecture, and [08_UPDATE-LOG.md](08_UPDATE-LOG.md) for the daily investigation log.*
