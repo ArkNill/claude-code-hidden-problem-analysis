@@ -20,8 +20,8 @@ JSONL session logs are the client's record of every API interaction. Unlike the 
 - **Session cost range:** 753x variation (447K → 336M visible tokens) between cheapest and most expensive sessions
 - **Time-normalized cost:** median 153K cache_read/minute, mean 227K/minute
 - **Cross-correlation with proxy:** JSONL records **1.93x** the cache_read tokens that the proxy sees — directly confirming PRELIM double-counting inflates local accounting by ~2x
-- **Budget enforcement (proxy):** 72,839 events across 20 sessions — 100% truncation rate, 90.6% to 11-100 chars. See [13_PROXY-DATA.md §7](13_PROXY-DATA.md#7-budget-enforcement-bug-5--full-data)
-- **Microcompact (proxy):** 3,782 events, 15,998 items cleared. Scales with message count: 1.6 cleared at <10 msgs → 6.6 at 200+. See [13_PROXY-DATA.md §8](13_PROXY-DATA.md#8-microcompact-bug-4--full-data)
+- **Budget enforcement (proxy):** 167,818 events across 218 sessions (April 1–13) — 100% truncation rate, 100% ≤50 chars. See [13_PROXY-DATA.md §7](13_PROXY-DATA.md#7-budget-enforcement-bug-5--full-data)
+- **Microcompact (proxy):** 5,500 events, 18,858 items cleared (April 1–13). Scales with message count: 1.6 cleared at <10 msgs → 6.6 at 200+. See [13_PROXY-DATA.md §8](13_PROXY-DATA.md#8-microcompact-bug-4--full-data)
 
 ---
 

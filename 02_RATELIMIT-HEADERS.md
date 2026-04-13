@@ -179,14 +179,14 @@ Both analyses measure **client-side token consumption** (what was sent/received)
 
 > **Added:** April 13, 2026 — extended proxy data from our own cc-relay, plus community cross-account observations from [#41930](https://github.com/anthropics/claude-code/issues/41930).
 
-Section 1 documented `fallback-percentage` = `0.5` across our initial 3,702-request sample (April 4–6). Our proxy has now accumulated **20,083 requests** (April 4–13, 10 days). The field remains **0.5 on every single request — zero variance across the entire dataset.**
+Section 1 documented `fallback-percentage` = `0.5` across our initial 3,702-request sample (April 4–6). Our proxy has now accumulated **27,708 requests** (April 1–13, 13 days). The field remains **0.5 on every single request — zero variance across the entire dataset.**
 
 | Metric | Value |
 |--------|-------|
-| Total requests with headers | **20,083** |
-| `fallback-percentage` = 0.5 | **20,083 (100%)** |
-| `overage-status` = allowed | **20,083 (100%)** |
-| Date range | April 4 – April 13, 2026 |
+| Total requests with headers | **27,708** |
+| `fallback-percentage` = 0.5 | **27,708 (100%)** |
+| `overage-status` = allowed | **27,708 (100%)** |
+| Date range | April 1 – April 13, 2026 |
 | Plan | Max 20x ($200/mo) |
 | Source | cc-relay proxy (our own) |
 
@@ -205,7 +205,7 @@ Starting April 11, two independent researchers published cross-account data in [
 
 ### What we know
 
-1. **Consistency within accounts:** Our 20,083 requests over 10 days and cnighswonger's 11,502 over 7 days both show zero variance. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
+1. **Consistency within accounts:** Our 27,708 requests over 13 days and cnighswonger's 11,502 over 7 days both show zero variance. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
 2. **Variation across time:** 0.2 in November 2025 (#12829) vs 0.5 in April 2026 — the value can change over time.
 3. **`overage-status` diverges across accounts on the same plan:** Our Max 20x and cnighswonger's Max 5x both show `allowed`, while 0xNightDev's Max 5x shows `rejected` + `org_level_disabled`.
 
