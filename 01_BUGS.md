@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.97. Bug 2a status is **unclear** (v2.1.97 resume fixes may apply) (latest, April 9, 2026). Bug 11 is acknowledged but unresolved. **Six releases (v2.1.92–v2.1.97) introduced zero fixes for any of the nine unfixed bugs.** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v2197) below.
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.101. Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 is acknowledged but unresolved. **Eight releases (v2.1.92–v2.1.101) introduced zero fixes for any of the nine unfixed bugs.** P3 ("Output efficiency" prompt) has been **observed removed** between v2.1.98 and v2.1.101 (self-verified: 353 JSONL sessions scanned, 0 occurrences after April 10). See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: April 13, 2026)
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
@@ -34,6 +34,21 @@ The standalone binary's embedded Bun fork contains a `cch=00000` sentinel replac
 > *"Fixed --resume causing a full prompt-cache miss on the first request for users with deferred tools, MCP servers, or custom agents (regression since v2.1.69)"*
 
 **Note:** `--continue` has the same cache invalidation behavior ([#42338](https://github.com/anthropics/claude-code/issues/42338) confirmed). We recommend avoiding both `--resume` and `--continue` until fully verified — start fresh sessions instead.
+
+### Note: Residual First-Turn Cache Miss (post-fix, self-measured April 13)
+
+Even after B1/B2 fixes (v2.1.91+), new sessions frequently show `cache_read=0` on the first API call. Community analysis ([#47098](https://github.com/anthropics/claude-code/issues/47098), [@wadabum](https://github.com/wadabum)) identified a structural cause: skills and project `CLAUDE.md` content are assembled into `messages[0]` user-content blocks rather than the `system[]` prefix. Since Anthropic's prompt caching is **prefix-based**, any variation in `messages[0]` invalidates the prefix — even if the system prompt itself is identical.
+
+**Self-measured (April 13, cc-relay usage.db):**
+
+| Metric | Value |
+|--------|-------|
+| Sessions analyzed (≥3 requests) | 143 |
+| First-turn `cache_read=0` | **113 (79.0%)** |
+| First-turn `cache_read>0` | 30 (21.0%) |
+| Data source | cc-relay proxy, April 4–13, multiple CC versions |
+
+Nearly 4 in 5 new sessions start with a full cache miss on the first turn. This is not a regression from B1/B2 — it is a **structural limitation** of the system prompt assembly architecture, partially mitigated in newer versions (community data suggests improvement from ~91% on v2.1.94 to ~29% on v2.1.104, though with small sample sizes and uncontrolled conditions).
 
 ---
 
@@ -284,6 +299,10 @@ This correlates with the regression timeline. Multiple users report the model ta
 
 **Caveat:** The regression was reported "starting in February" by some users, predating this March 3 change. This is likely an **aggravating factor**, not the sole root cause. Multiple overlapping changes (adaptive thinking bug, thinking redaction rollout) complicate attribution.
 
+**Update (April 13, self-verified):** The "Output efficiency" section is **no longer present** in sessions after April 10, based on a scan of **353 local JSONL session files** for the exact text strings ("straight to the point", "do not overdo"). The last session containing this text was on April 9; all ~30 sessions from April 10 onward show zero occurrences. The transition boundary on April 8-9 is mixed (5 sessions PRESENT, ~20 ABSENT on April 9 alone), likely due to running multiple CC versions concurrently (claudeGt pinned at v2.1.91 vs auto-updated stock). The exact removal version cannot be pinpointed — v2.1.99 and v2.1.100 do not exist in the public changelog, and neither v2.1.98 nor v2.1.101 mentions this change (system prompt changes are typically not documented). The removal was first noted by [@wjordan](https://github.com/wjordan) (`author_association: NONE`, external observer tracking system prompts via [Piebald-AI/claude-code-system-prompts](https://github.com/Piebald-AI/claude-code-system-prompts)).
+
+**Status change:** PRELIMINARY → **OBSERVED REMOVED** (between v2.1.98 and v2.1.101). Not officially confirmed by Anthropic. The removal suggests internal recognition that the section was problematic.
+
 ### P4 — Third-Party App Detection Gap (billing routing)
 
 **GitHub Issue:** [#45380](https://github.com/anthropics/claude-code/issues/45380)
@@ -351,11 +370,11 @@ v2.1.91 standalone cold start varies by workspace (27.8% in full benchmark vs 84
 
 ---
 
-## Changelog Cross-Reference (v2.1.92–v2.1.97)
+## Changelog Cross-Reference (v2.1.92–v2.1.101)
 
-> **Added:** April 9, 2026 — systematic cross-reference of [official changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) against all unfixed bugs.
+> **Added:** April 9, 2026 — systematic cross-reference of [official changelog](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) against all unfixed bugs. **Updated April 13** with v2.1.98 and v2.1.101 (v2.1.99 and v2.1.100 do not exist in the public changelog — version numbers were skipped).
 
-Six releases shipped between v2.1.91 (our last benchmark) and v2.1.97 (latest as of April 9). **None address the nine unfixed bugs.** The development focus was Bedrock/authentication, UI polish, MCP improvements, and resume UX — not token accounting, context mutation, or log integrity.
+Eight releases shipped between v2.1.91 (our last benchmark) and v2.1.101 (latest as of April 13). **None address the nine unfixed bugs.** v2.1.92–97 focused on Bedrock/authentication, UI polish, MCP improvements, and resume UX. v2.1.98 focused on security hardening (6+ Bash permission bypass fixes). v2.1.101 fixed several resume/MCP bugs tangential to but not addressing B3–B11.
 
 | Bug | Changelog mentions (v2.1.92–97) | Verdict |
 |-----|----------------------------------|---------|
@@ -369,16 +388,30 @@ Six releases shipped between v2.1.91 (our last benchmark) and v2.1.97 (latest as
 | **B11** Zero Reasoning | v2.1.94: default effort medium→**high** (more thinking budget); v2.1.92: "400 error when extended thinking produced whitespace-only text" fixed (crash prevention). Root cause (zero-allocation by adaptive thinking) **not addressed** — bcherny stated "investigating with model team" on HN (April 6) with no follow-up. | ⚠️ **SYMPTOMS REDUCED** |
 | **B2a** SendMessage Cache | v2.1.97: "resume-mode issues fixed (picker, diff)" — different symptoms. No mention of Agent SDK `SendMessage` cache miss (`cache_read=0`). | ❓ **UNCLEAR** |
 
+**v2.1.98–v2.1.101 (added April 13):**
+
+| Bug | Changelog mentions (v2.1.98–101) | Verdict |
+|-----|-----------------------------------|---------|
+| **B3** False RL | v2.1.98: "429 retries burning all attempts in ~13s — exponential backoff now applies as a minimum" — server 429 retry pacing, not client-side synthetic blocker. | ❌ **UNFIXED** |
+| **B4** Microcompact | No mention. Server-controlled. | ❌ **UNFIXED** |
+| **B5** Budget Cap | v2.1.101: "Fixed MCP tools with `_meta[\"anthropic/maxResultSizeChars\"]` not bypassing the token-based persist layer" — MCP-only fix for a feature added in v2.1.91. Does **not** affect built-in tool budget (`applyToolResultBudget()` 200K cap unchanged). | ❌ **UNFIXED** |
+| **B8** Log Duplication | No mention. | ❌ **UNFIXED** |
+| **B8a** JSONL Corruption | v2.1.101: "Fixed crash when persisted Edit/Write tool result was missing `file_path`" — crash prevention for a downstream symptom, not the root cause (non-atomic concurrent writes). | ❌ **UNFIXED** |
+| **B9** /branch Inflation | v2.1.101: "Fixed a memory leak where long sessions retained dozens of historical copies of the message list in the virtual scroller" — UI memory leak, not message-history duplication in the API payload. Different layer. | ❌ **UNFIXED** |
+| **B10** TaskOutput Thrash | No mention. Deprecation message still present. | ❌ **UNFIXED** |
+| **B11** Zero Reasoning | No new progress beyond v2.1.94 effort default change. | ⚠️ **SYMPTOMS REDUCED** (unchanged) |
+| **B2a** SendMessage Cache | v2.1.101: "Fixed `--resume`/`--continue` losing conversation context on large sessions" and "Fixed `--resume` cache misses for sessions with deferred tools, MCP servers, or custom agents" — these fix **CLI resume** code paths. Whether the **Agent SDK `SendMessage` orchestrator** (B2a's distinct code path) is also fixed is **unconfirmed**. | ❓ **POSSIBLY FIXED** (was UNCLEAR) |
+
 **Preliminary findings (P1–P4):**
 
-| Finding | Changelog mentions | Verdict |
-|---------|-------------------|---------|
+| Finding | Changelog mentions (v2.1.92–101) | Verdict |
+|---------|----------------------------------|---------|
 | **P1** Telemetry-TTL | None. `has repro` label on #45381 but no fix announced. | ❓ Unknown |
 | **P2** TTL Dual Tiers | None. Server-side — would not appear in client changelog. | ❓ Unknown |
-| **P3** "Output Efficiency" prompt | **Still present** in v2.1.97 system prompt: *"Go straight to the point. Try the simplest approach first without going in circles."* Added v2.1.64 (Mar 3), unchanged through 33 releases. | ❌ **STILL ACTIVE** |
+| **P3** "Output Efficiency" prompt | Self-verified: 353 JSONL sessions scanned, text absent in all sessions after April 10. See [P3 update above](#p3--output-efficiency-system-prompt-change-v2164-march-3). | 🔄 **OBSERVED REMOVED** |
 | **P4** Third-Party Detection | None. Server-side billing routing. | ❓ Unknown |
 
-**Summary:** Anthropic shipped 6 releases over 8 days (v2.1.92–97) containing Bedrock wizard, Cedar syntax highlighting, focus view toggles, footer layout tweaks, and `/tag` removal — while 9 confirmed bugs affecting token accounting, context integrity, and session stability remain completely unaddressed. The only partial progress is B11 symptom reduction (effort default change + crash fix) and a possible B8 transcript improvement, neither of which fixes the underlying issue.
+**Summary:** Anthropic shipped 8 releases over 12 days (v2.1.92–101) with zero fixes for any of the nine unfixed bugs. v2.1.98 focused on security hardening (6+ Bash permission bypass fixes). v2.1.101 fixed several resume/MCP bugs tangential to but not addressing B3–B11. B2a status upgraded from UNCLEAR to POSSIBLY FIXED based on v2.1.101 resume improvements, pending Agent SDK verification. P3 ("Output efficiency" prompt) observed removed between v2.1.98 and v2.1.101 (self-verified via JSONL scan).
 
 ---
 
