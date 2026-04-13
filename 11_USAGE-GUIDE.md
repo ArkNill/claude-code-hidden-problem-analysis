@@ -343,7 +343,7 @@ Detailed technical analysis in [01_BUGS.md](01_BUGS.md). This table is a practic
 | **B2** Resume | `--resume` causes full cache miss, rebilling entire conversation | **Fixed** (v2.1.90) | Avoid `--resume` and `--continue`. Start fresh. |
 | **B3** False Rate Limit | Client generates fake "Rate limit reached" errors without contacting the API. 24 synthetic events measured across 6 days. | **Unfixed** | Restart Claude Code if you hit a rate limit immediately after idle time. |
 | **B4** Microcompact | Old tool results silently replaced with `[Old tool result content cleared]`. 327 events measured. Cache stays at 99%+, but the model loses access to earlier data. | **Unfixed** | Start fresh sessions periodically. No env var prevents this. |
-| **B5** Budget Cap | After 200K aggregate characters of tool results, older results are truncated to 1-49 characters. 72,839 events measured across 20 sessions. | **Unfixed** | Start fresh sessions after 15-20 file reads. Read only the lines you need. |
+| **B5** Budget Cap | After 200K aggregate characters of tool results, older results are truncated to ≤50 characters. 167,818 events measured across 218 sessions. | **Unfixed** | Start fresh sessions after 15-20 file reads. Read only the lines you need. |
 | **B8** Log Inflation | Extended thinking causes 2-3x duplicate entries in JSONL logs, inflating local token counts. JSONL shows 1.93x actual usage. | **Unfixed** | Do not trust local JSONL token counts as absolute values. Use them for relative comparisons only. |
 
 ### Server-Side Factors
