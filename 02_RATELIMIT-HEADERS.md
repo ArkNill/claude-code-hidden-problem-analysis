@@ -96,18 +96,18 @@ Total tokens divided by peak utilization in percentage points. "Total Visible" =
 - Cache Read per 1%: 1.5M–2.1M (variance ~1.35x)
 - A full 5h window (100%) would correspond to only ~0.9M–1.6M visible output tokens
 
-### Blind spot: thinking tokens
+### Partially measured: thinking tokens
 
 Extended thinking tokens are not included in `output_tokens` from the API. The actual per-1% cost is:
 
 ```
 Visible output:    9K–16K       (measured)
-Thinking output:   unknown      (not in API response)
+Thinking output:   ~0.0–0.1%    (estimated from JSONL content blocks — see below)
 Cache read:        1.5M–2.1M   (measured)
 Input:             ~25K         (measured)
 ```
 
-Cannot decompose cache-read weight vs thinking token contribution from client side.
+Independent JSONL-based analysis by [@seanGSISG](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/3) (179K API calls, Dec 2025 – Apr 2026) estimated thinking block contribution at 0.0–0.1% of total quota from content block text. This is the first concrete measurement of this gap, though JSONL content blocks may represent displayed summaries rather than full server-side computation. The API's exclusion of thinking tokens from `output_tokens` means the full server-side cost remains unmeasurable from the client side.
 
 ---
 
@@ -145,10 +145,10 @@ All proxy data in this document is from the post-fix period.
 ## 6. Limitations
 
 - **Plan-specific.** Max 20x ($200/mo) data. Per-1% costs likely differ on other tiers.
-- **No before-data.** Proxy started April 4 — no March baseline for comparison.
+- **No before-data — partially resolved.** Proxy started April 4 — no March baseline for comparison. [@seanGSISG's 179K-call dataset](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/3) (Dec 2025 – Apr 2026) provides independent before-data confirming per-1% benchmarks hold across the transition period.
 - **48h / 8 windows.** Consistent trends but small sample size. Full 7-day cycle completes April 10.
 - **5h boundary timing approximate.** Eight reset timestamps observed, not enough to confirm exact pattern.
-- **Thinking token blind spot.** Cannot separate thinking token contribution from cache-read weighting.
+- **Thinking tokens partially measured.** JSONL content blocks suggest ~0.0–0.1% of quota ([@seanGSISG](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/3)), but server-side computation may differ from displayed content.
 
 ---
 

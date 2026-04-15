@@ -164,7 +164,7 @@ On April 1, 2026, my Max 20 plan ($200/mo) hit 100% usage in ~70 minutes during 
 
 Downgrading from v2.1.89 to v2.1.68 immediately recovered cache to **97.6%** — confirming the regression was version-specific. I set up a transparent monitoring proxy (cc-relay) to capture per-request data going forward.
 
-What started as personal debugging quickly expanded. Dozens of users were reporting the same symptoms across what became [91+ GitHub issues](10_ISSUES.md). Community members — [@Sn3th](https://github.com/Sn3th), [@rwp65](https://github.com/rwp65), [@fgrosswig](https://github.com/fgrosswig), [@Commandershadow9](https://github.com/Commandershadow9), and [12 others](10_ISSUES.md#contributors--acknowledgments) — independently found different pieces of the puzzle.
+What started as personal debugging quickly expanded. Dozens of users were reporting the same symptoms across what became [91+ GitHub issues](10_ISSUES.md). Community members — [@Sn3th](https://github.com/Sn3th), [@rwp65](https://github.com/rwp65), [@fgrosswig](https://github.com/fgrosswig), [@seanGSISG](https://github.com/seanGSISG), [@Commandershadow9](https://github.com/Commandershadow9), and [others](10_ISSUES.md#contributors--acknowledgments) — independently found different pieces of the puzzle.
 
 **The investigation timeline:**
 
@@ -239,6 +239,7 @@ This analysis builds on work by many community members who independently investi
 | [@rwp65](https://github.com/rwp65) | Discovered client-side false rate limiter (Bug 3) |
 | [@cnighswonger](https://github.com/cnighswonger) | Built [cache-fix interceptor](https://github.com/cnighswonger/claude-code-cache-fix) — 4,700 calls, 98.3% cache hit, TTL tier detection |
 | [@wpank](https://github.com/wpank) | 47,810 requests tracked, v2.1.63 vs v2.1.96 quantitative comparison |
+| [@seanGSISG](https://github.com/seanGSISG) | Independent corroboration with 179K API calls (Dec 2025 – Apr 2026) — before-data, cache_read weight validation, thinking token estimation |
 | [@fgrosswig](https://github.com/fgrosswig) | 64x budget reduction forensics — 18-day JSONL analysis |
 | [@Commandershadow9](https://github.com/Commandershadow9) | 34-143x capacity reduction analysis, thinking token hypothesis |
 | [@kolkov](https://github.com/kolkov) | Built [ccdiag](https://github.com/kolkov/ccdiag), identified v2.1.91 resume regressions |
