@@ -256,11 +256,25 @@ The 3 days I was away were intense. #42796 saw a wave of subscription cancellati
 
 ---
 
-## Planned (as of April 13)
+## April 15, 2026 — Data refresh, verified through v2.1.108
+
+**Focus:** Proxy data refresh + changelog verification through v2.1.108.
+
+**Data updated:**
+- Proxy dataset expanded to **35,554 requests** across **251 sessions** (April 1–15)
+- Post-barrier requests: **9,996** (April 10 14:25 – April 15), still zero B4/B5 events — 5 days of clean data
+- Overall cache efficiency: **98.3%**
+- Changelog verified through **v2.1.108** — still zero fixes for B3–B11
+
+**Published:** Data refresh across README.md, 01_BUGS.md, 02_RATELIMIT-HEADERS.md, 05_MICROCOMPACT.md, 13_PROXY-DATA.md.
+
+---
+
+## Planned (as of April 15)
 
 Carried forward from April 9, with updates:
 
-- ~~Continue rate limit header data collection through April 10~~ ✅ Done (27,708 requests through April 13)
+- ~~Continue rate limit header data collection through April 10~~ ✅ Done (35,554 requests through April 15)
 - ~~Verify P3 "Output efficiency" prompt~~ ✅ Done (OBSERVED REMOVED, 353 JSONL scan)
 - **Thinking token isolation test**: still pending. Run sessions with `alwaysThinkingEnabled: false` and compare per-1% utilization cost
 - **v2.1.92+ JSONL verification:** Check if B8 PRELIM duplication is reduced in transcript

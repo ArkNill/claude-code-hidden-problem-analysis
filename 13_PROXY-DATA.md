@@ -2,15 +2,15 @@
 
 # Proxy & Bulk Scan — Full Dataset
 
-> **Date:** April 14, 2026 (data collection ongoing)
+> **Date:** April 15, 2026 (data collection ongoing)
 >
 > **Data sources:**
-> - cc-relay proxy SQLite database (`usage.db`, 49 MB) — 30,477 API requests intercepted (April 1-14)
+> - cc-relay proxy SQLite database (`usage.db`) — 35,554 API requests intercepted (April 1-15)
 > - JSONL bulk scan via `jsonl_analyzer.py` — 532 session files, 158.3 MB (April 1-8, not re-run for later dates)
 >
 > **Relationship to other documents:** [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) contains the JSONL client-side analysis (§1-8) and references key findings from this document. [01_BUGS.md](01_BUGS.md) contains bug definitions; this document provides the full measured data. [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) covers server-side rate limit header analysis.
 >
-> **Environment change:** On April 10, a proxy-based GrowthBook flag override was deployed. Data from **April 1–10** is from the unmodified environment (baseline). Data from **April 11–14** is from the overridden environment. B4/B5 event counts are entirely from the baseline period. See [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014) for details.
+> **Environment change:** On April 10, a proxy-based GrowthBook flag override was deployed. Data from **April 1–10** is from the unmodified environment (baseline). Data from **April 11–15** is from the overridden environment. B4/B5 event counts are entirely from the baseline period. See [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014) for details.
 
 ---
 
@@ -18,16 +18,16 @@
 
 ### 1.1 Totals
 
-| Metric | Value (Apr 1-8) | Value (Apr 1-14, latest) |
+| Metric | Value (Apr 1-8) | Value (Apr 1-15, latest) |
 |--------|-----------------|--------------------------|
-| Total API requests | 17,610 | **30,477** |
-| Unique sessions | 129 | **230** |
+| Total API requests | 17,610 | **35,554** |
+| Unique sessions | 129 | **251** |
 | Total input tokens | 12,438,471 | **28,477,426** |
 | Total output tokens | 8,214,875 | **15,007,647** |
 | Total cache_read | 1,692,619,956 | **2,988,290,095** |
 | Total cache_creation | 38,785,293 | **64,098,470** |
-| Overall cache % | — | **97.0%** |
-| Date range | Apr 1–8 | **Apr 1–14** |
+| Overall cache % | — | **98.3%** |
+| Date range | Apr 1–8 | **Apr 1–15** |
 
 ```mermaid
 xychart-beta
@@ -56,13 +56,13 @@ xychart-beta
 ## 2. Model Distribution (Opus vs Subagent)
 
 ```mermaid
-pie title Requests by Model (Apr 1-14, n=30,477)
+pie title Requests by Model (Apr 1-15, n=35,554)
     "Opus (67%)" : 20457
     "Haiku (23%)" : 7157
     "Other (10%)" : 2867
 ```
 
-| Model | Requests (Apr 1-8) | Requests (Apr 1-14) | Cache % | Total Cache Read | Total Cache Create |
+| Model | Requests (Apr 1-8) | Requests (Apr 1-15) | Cache % | Total Cache Read | Total Cache Create |
 |-------|--------------------|--------------------|---------|------------------|--------------------|
 | **Opus** | 11,959 | **20,457** | **98.2%** | 2,849,197,725 | 52,368,359 |
 | **Haiku** (subagent) | 3,781 | **7,157** | **78.2%** | 139,788,794 | 11,733,883 |
@@ -168,7 +168,7 @@ Burst peaks are driven by **Haiku subagent fan-out** (Agent tool spawning parall
 
 ## 7. Budget Enforcement (Bug 5) — Full Data
 
-> **Note:** All B5 events are from the **unmodified baseline period** (April 1–10). After the GrowthBook flag override on April 10, zero B5 events were recorded across 4,919 requests. See [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014).
+> **Note:** All B5 events are from the **unmodified baseline period** (April 1–10). After the GrowthBook flag override on April 10, zero B5 events were recorded across 9,996 requests. See [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014).
 
 ```mermaid
 xychart-beta
@@ -178,12 +178,12 @@ xychart-beta
     bar [18036,2815,1714,16164,19409,20045,64175,25460]
 ```
 
-| Metric | Apr 3 only | Apr 1-8 | Apr 1-14 (total, all baseline) |
+| Metric | Apr 3 only | Apr 1-8 | Apr 1-15 (total, all baseline) |
 |--------|-----------|---------|-------------------------------|
 | Total events | 261 | 59,609 | **167,818** |
 | Sessions affected | 1 | ~20 | **218** |
 | Truncation rate | 100% | 100% | **100%** |
-| Events after override (Apr 11-14) | — | — | **0** (4,919 requests) |
+| Events after override (Apr 11-15) | — | — | **0** (9,996 requests) |
 
 **Content size distribution (n=167,818):**
 
@@ -211,13 +211,13 @@ Events are front-loaded — 34,568 in the first 25% of session lifetime vs 9,194
 
 ## 8. Microcompact (Bug 4) — Full Data
 
-> **Note:** All B4 events are from the **unmodified baseline period** (April 1–10). After the GrowthBook flag override, zero B4 events across 4,919 requests.
+> **Note:** All B4 events are from the **unmodified baseline period** (April 1–10). After the GrowthBook flag override, zero B4 events across 9,996 requests.
 
-| Metric | Apr 3 only | Apr 1-8 | Apr 1-14 (total, all baseline) |
+| Metric | Apr 3 only | Apr 1-8 | Apr 1-15 (total, all baseline) |
 |--------|-----------|---------|-------------------------------|
 | Total events | 327 | 3,325 | **5,500** |
 | Total items cleared | — | 15,998 | **18,858** |
-| Events after override (Apr 11-14) | — | — | **0** (4,919 requests) |
+| Events after override (Apr 11-15) | — | — | **0** (9,996 requests) |
 
 **Cleared count distribution (n=5,500):**
 
@@ -383,4 +383,4 @@ xychart-beta
 
 ---
 
-*Environment: Max 20x ($200/mo), Opus 4.6 1M, v2.1.91, Linux (ubuntu-1), single machine. cc-relay proxy: 17,610 requests (April 1-8), SQLite 22.5 MB. JSONL corpus: 1,735+ files (532 in last 7 days), 158.3 MB. Data collection ongoing — numbers will increase with continued usage.*
+*Environment: Max 20x ($200/mo), Opus 4.6 1M, v2.1.91, Linux (ubuntu-1), single machine. cc-relay proxy: 35,554 requests (April 1-15). JSONL corpus: 1,735+ files (532 in last 7 days), 158.3 MB. Data collection ongoing — numbers will increase with continued usage.*

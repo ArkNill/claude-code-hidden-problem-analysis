@@ -206,7 +206,7 @@ Starting April 11, two independent researchers published cross-account data in [
 
 ### What we know
 
-1. **Consistency within accounts:** Our 27,708 requests over 13 days and cnighswonger's 11,502 over 7 days both show zero variance. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
+1. **Consistency within accounts:** Our 35,554 requests over 15 days and cnighswonger's 11,502 over 7 days both show zero variance. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
 2. **Variation across time:** 0.2 in November 2025 (#12829) vs 0.5 in April 2026 — the value can change over time.
 3. **`overage-status` diverges across accounts on the same plan:** Our Max 20x and cnighswonger's Max 5x both show `allowed`, while 0xNightDev's Max 5x shows `rejected` + `org_level_disabled`.
 
@@ -246,12 +246,12 @@ Sections 1–7 reported `representative-claim` = `five_hour` in 100% of our init
 
 > **Added:** April 14, 2026
 
-Our proxy data spans April 1–14 (30,477 total requests, 23,374 with rate limit headers). The measurement environment changed during this period:
+Our proxy data spans April 1–15 (35,554 total requests, 23,374 with rate limit headers). The measurement environment changed during this period:
 
 | Period | Requests | Environment | Use for |
 |--------|----------|-------------|---------|
 | Apr 1 – Apr 10 14:25 | 25,558 | **Unmodified** CC — no flag overrides | Baseline measurements, bug event counts, per-1% cost analysis |
-| Apr 10 14:25 – Apr 14 | 4,919 | GrowthBook flag override active (B4/B5 flags set to permissive values, see [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014)) | Override effect measurement only |
+| Apr 10 14:25 – Apr 15 | 9,996 | GrowthBook flag override active (B4/B5 flags set to permissive values, see [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014)) | Override effect measurement only |
 
 **Why this matters:**
 - B4/B5 event counts (167,818 and 5,500) are entirely from the unmodified period

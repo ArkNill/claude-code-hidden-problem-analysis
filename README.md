@@ -2,17 +2,29 @@
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **3 preliminary findings** (P1-P3). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.101** (latest, 8 releases later). Proxy data now covers **30,477 requests** over 14 days. A controlled GrowthBook flag override eliminated B4/B5 events completely (167,818 → 0, 5,500 → 0). The 7d quota window can become the binding constraint — first observed when 7d utilization hit 0.97. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
+> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **3 preliminary findings** (P1-P3). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.108** (latest, 8 releases later). Proxy data now covers **35,554 requests** over 15 days. A controlled GrowthBook flag override eliminated B4/B5 events completely (167,818 → 0, 5,500 → 0). The 7d quota window can become the binding constraint — first observed when 7d utilization hit 0.97. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
 >
-> **Last updated:** April 14, 2026 — see [changelog cross-reference](01_BUGS.md#changelog-cross-reference-v2192v21101) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
+> **Last updated:** April 15, 2026 — see [changelog cross-reference](01_BUGS.md#changelog-cross-reference-v2192v21101) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
 
 ---
 
-## Latest Update (April 14)
+## Latest Update (April 15)
 
-### April 14 — 30K requests, GrowthBook override methodology, 7d bottleneck discovered, environment caveat
+### April 15 — 35K requests, v2.1.108 verified, @seanGSISG independent validation
 
-Proxy dataset expanded to **30,477 requests** across **230 sessions** (April 1–14). Key updates:
+Proxy dataset expanded to **35,554 requests** across **251 sessions** (April 1–15). Verified through CC v2.1.108.
+
+**1. Independent corroboration.** [@seanGSISG](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/3) contributed a 179K-call dataset (Dec 2025 – Apr 2026, Max 20x) with 4 analysis scripts. Key results: CacheRead per 1% at 1.62-1.72M (within our 1.5-2.1M range), thinking token contribution estimated at 0.0-0.1% from JSONL content blocks, and a counterfactual showing zero days exceed budget under 0x formula while 18 days exceed under 1x. This resolves our "No before-data" limitation. [Issue #3 →](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/3)
+
+**2. Thinking token status update.** "Blind spot" revised to "partially measured" based on @seanGSISG's JSONL analysis. Server-side computation cost remains unmeasurable from client side, but content block text suggests <1% of quota. [Details →](02_RATELIMIT-HEADERS.md#partially-measured-thinking-tokens)
+
+**3. Cache efficiency.** Overall cache efficiency improved to **98.3%** (from 97.0% at 30K requests). Post-barrier (flag override active): 9,996 requests with sustained zero B4/B5 events.
+
+---
+
+### April 14 — GrowthBook override methodology, 7d bottleneck discovered, environment caveat
+
+Key updates from April 14:
 
 **1. GrowthBook flag override — controlled elimination test.** Deployed a proxy-based flag override on April 10 (the approach documented in [#42542](https://github.com/anthropics/claude-code/issues/42542)). Result: **B5 events 167,818 → 0, B4 events 5,500 → 0** across 4,919 subsequent requests over 4 days. Same machine, same account, same usage patterns. This is the strongest causal evidence that these flags directly control context mutation. [Methodology →](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014)
 
@@ -97,17 +109,17 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ---
 
-## Current Status (April 13, 2026 — verified through v2.1.101)
+## Current Status (April 15, 2026 — verified through v2.1.108)
 
 ```mermaid
-pie title Bug Status (12 identified, verified through v2.1.101)
+pie title Bug Status (12 identified, verified through v2.1.108)
     "Fixed (B1, B2)" : 2
     "Unfixed (B3-B5, B8-B11, B8a)" : 8
     "Possibly Fixed (B2a)" : 1
     "By Design (Server)" : 1
 ```
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.101** (latest, 8 releases later). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.108** (latest). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
 
 | Bug | What It Does | Impact | Status | Details |
 |-----|-------------|--------|--------|---------|
@@ -126,7 +138,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs 
 
 ### What You Can Do
 
-1. **Update to v2.1.91+** — fixes the cache regression (worst drain). v2.1.92–101 add no bug fixes for issues tracked here but are safe to use
+1. **Update to v2.1.91+** — fixes the cache regression (worst drain). v2.1.92–108 add no bug fixes for issues tracked here but are safe to use
 2. **npm or standalone — both fine on v2.1.91** (Sentinel gap closed)
 3. **Don't use `--resume` or `--continue`** — replays full context as billable input
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
@@ -205,15 +217,15 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 | File | What | Updated |
 |------|------|---------|
-| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 3 preliminary (P1-P3, P4 removed) + changelog cross-reference (v2.1.92-101) | Apr 14 |
+| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 3 preliminary (P1-P3, P4 removed) + changelog cross-reference (v2.1.92-108) | Apr 15 |
 | **[09_QUICKSTART.md](09_QUICKSTART.md)** | Quick fix guide — Option A (v2.1.91+) vs Option B (v2.1.63 downgrade), npm vs standalone, diagnosis | Apr 9 |
 | **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle (Phase 1-9) + April 6-9 community acceleration + Anthropic response | Apr 9 |
-| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | Apr 9 |
+| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | Apr 15 |
 | **[10_ISSUES.md](10_ISSUES.md)** | 91+ tracked issues + community tools + contributors | Apr 9 |
-| **[13_PROXY-DATA.md](13_PROXY-DATA.md)** | Full-week proxy dataset (17,610 requests, 129 sessions) with Mermaid visualizations | Apr 8 |
-| **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot, fallback-percentage extended data | Apr 13 |
+| **[13_PROXY-DATA.md](13_PROXY-DATA.md)** | Full proxy dataset (35,554 requests, 251 sessions) with Mermaid visualizations | Apr 15 |
+| **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot, fallback-percentage extended data | Apr 15 |
 | **[03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
-| **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 3 |
+| **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 15 |
 | **[04_BENCHMARK.md](04_BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
 | **[06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md)** | April 3 integrated test results — all bugs verified | Apr 3 |
 | **[11_USAGE-GUIDE.md](11_USAGE-GUIDE.md)** | Essential usage guide — sessions, context, CLAUDE.md, token-saving | Apr 8 |
@@ -223,9 +235,9 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 - **Plan:** Max 20 ($200/mo)
 - **OS:** Linux (Ubuntu), Linux workstation (ubuntu-1)
-- **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.101**
-- **Monitoring:** cc-relay v2 transparent proxy (27,708 total requests across 218 sessions, April 1–13)
-- **Date:** April 13, 2026
+- **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.108**
+- **Monitoring:** cc-relay v2 transparent proxy (35,554 total requests across 251 sessions, April 1–15)
+- **Date:** April 15, 2026
 
 ---
 

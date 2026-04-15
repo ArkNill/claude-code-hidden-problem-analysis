@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.101. Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 is acknowledged but unresolved. **Eight releases (v2.1.92–v2.1.101) introduced zero fixes for any of the nine unfixed bugs.** P3 ("Output efficiency" prompt) has been **observed removed** between v2.1.98 and v2.1.101 (self-verified: 353 JSONL sessions scanned, 0 occurrences after April 10). See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: April 14, 2026)
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.108. Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 is acknowledged but unresolved. **Eight releases (v2.1.92–v2.1.101) introduced zero fixes for any of the nine unfixed bugs.** P3 ("Output efficiency" prompt) has been **observed removed** between v2.1.98 and v2.1.101 (self-verified: 353 JSONL sessions scanned, 0 occurrences after April 10). See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: April 15, 2026)
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
@@ -148,9 +148,9 @@ Five context-management flags (covering tool result budget, per-tool caps, time-
 | Period | Requests | B5 Events | B4 Events | Environment |
 |--------|----------|-----------|-----------|-------------|
 | Apr 1 – Apr 10 14:25 | 25,558 | 167,818 | 5,500 | No override — clean baseline |
-| **Apr 10 14:25 – Apr 14** | **4,919** | **0** | **0** | Override active |
+| **Apr 10 14:25 – Apr 15** | **9,996** | **0** | **0** | Override active |
 
-Last B5 event: **April 10, 14:25:04 KST**. Last B4 event: **April 10, 19:55:47 KST**. After these timestamps, zero events across 4,919 requests over 4 days — same machine, same account, same usage patterns. The only variable changed was the GrowthBook flag values.
+Last B5 event: **April 10, 14:25:04 KST**. Last B4 event: **April 10, 19:55:47 KST**. After these timestamps, zero events across 9,996 requests over 5 days — same machine, same account, same usage patterns. The only variable changed was the GrowthBook flag values.
 
 **Important caveat for data interpretation:** All proxy data in this repository from **April 11 onward** was collected with the flag override active. B4/B5 event counts from these dates reflect the overridden environment, not default CC behavior. The **unmodified baseline period is April 1–10** (25,558 requests). When citing cumulative event counts (e.g., "167,818 B5 events"), these are entirely from the baseline period.
 
