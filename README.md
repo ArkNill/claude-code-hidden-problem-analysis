@@ -2,29 +2,41 @@
 
 # Claude Code Hidden Problem Analysis
 
-> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **4 preliminary findings** (P1-P4). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.101** (latest, 8 releases later). The "Output efficiency" system prompt (P3) has been quietly removed — confirmed by scanning 353 local session files. Proxy data now covers **27,708 requests** over 13 days, with `fallback-percentage: 0.5` on every single one. 79% of new sessions still start with a full cache miss on the first turn, even post-fix. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
+> **TL;DR:** Claude Code has **11 confirmed client-side bugs** (B1-B5, B8, B8a, B9, B10, B11, B2a) plus **3 preliminary findings** (P1-P3). Cache bugs (B1-B2) are fixed in v2.1.91. **Nine remain unfixed as of v2.1.101** (latest, 8 releases later). Proxy data now covers **30,477 requests** over 14 days. A controlled GrowthBook flag override eliminated B4/B5 events completely (167,818 → 0, 5,500 → 0). The 7d quota window can become the binding constraint — first observed when 7d utilization hit 0.97. Anthropic acknowledged B11 (adaptive thinking zero-reasoning) on HN but has not followed up.
 >
-> **Last updated:** April 13, 2026 — see [changelog cross-reference](01_BUGS.md#changelog-cross-reference-v2192v21101) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
+> **Last updated:** April 14, 2026 — see [changelog cross-reference](01_BUGS.md#changelog-cross-reference-v2192v21101) and [08_UPDATE-LOG.md](08_UPDATE-LOG.md).
 
 ---
 
-## Latest Update (April 13)
+## Latest Update (April 14)
 
-### April 13 — v2.1.101 cross-reference, "Output efficiency" gone, 20K fallback-percentage data point
+### April 14 — 30K requests, GrowthBook override methodology, 7d bottleneck discovered, environment caveat
+
+Proxy dataset expanded to **30,477 requests** across **230 sessions** (April 1–14). Key updates:
+
+**1. GrowthBook flag override — controlled elimination test.** Deployed a proxy-based flag override on April 10 (the approach documented in [#42542](https://github.com/anthropics/claude-code/issues/42542)). Result: **B5 events 167,818 → 0, B4 events 5,500 → 0** across 4,919 subsequent requests over 4 days. Same machine, same account, same usage patterns. This is the strongest causal evidence that these flags directly control context mutation. [Methodology →](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014)
+
+**2. `seven_day` bottleneck — first observation.** Previously reported `representative-claim` = `five_hour` in 100% of requests. With the expanded dataset, **22.6% of requests** (5,279/23,374) showed `seven_day` as the binding constraint — concentrated on April 9–10 when 7d utilization reached 0.85–0.97. After the weekly reset, `five_hour` resumed. The 7d window is not cosmetic. [Details →](02_RATELIMIT-HEADERS.md#9-seven_day-bottleneck-first-observation-april-914)
+
+**3. Data interpretation caveat.** The measurement environment changed on April 10 when we deployed the flag override. All B4/B5 event counts (167,818 and 5,500) are from the **unmodified baseline period** (April 1–10, 25,558 requests). Data from April 11 onward (4,919 requests) reflects the overridden environment. Rate limit header analysis and `fallback-percentage` data are unaffected by the override. [Caveat →](02_RATELIMIT-HEADERS.md#10-data-interpretation-caveat--environment-changes-april-14)
+
+**4. Updated metrics:** `fallback-percentage` expanded to 23,374 requests — still 0.5 on every single one, zero variance. First-turn cache miss: 77.8% (158 sessions, slightly improved from 79.0%/143 sessions).
+
+---
+
+### April 13 — v2.1.101 cross-reference, "Output efficiency" gone
 
 Caught up on v2.1.98 and v2.1.101 (v2.1.99/100 don't exist — skipped in the public changelog). Two more releases, still zero fixes for B3–B11. v2.1.98 was mostly security patches (Bash permission bypasses). v2.1.101 fixed resume and MCP bugs — B2a (SendMessage cache miss) **may** be fixed via the CLI resume path, but the Agent SDK code path is unconfirmed. [Changelog cross-reference →](01_BUGS.md#changelog-cross-reference-v2192v21101)
 
-The "Output efficiency" system prompt section (P3) appears to be gone. Scanned all **353 local JSONL session files** — every session after April 10 shows zero occurrences of the "straight to the point" / "do not overdo" text. The April 8-9 boundary is messy (mixed PRESENT/ABSENT on the same day, likely from running two CC versions concurrently), but after April 10 it's clean. First noticed by [@wjordan](https://github.com/wjordan) via system prompt archive diffing. [P3 update →](01_BUGS.md#p3--output-efficiency-system-prompt-change-v2164-march-3)
-
-Extended the `fallback-percentage` dataset from 3,702 to **20,083 requests** (April 4–13, 10 days). Still 0.5 on every single request, zero variance. Community researchers [@cnighswonger](https://github.com/cnighswonger) (11,502 calls, Max 5x US) and [@0xNightDev](https://github.com/0xNightDev) (Max 5x EU) also report 0.5 — but with a notable difference: our account and cnighswonger's show `overage-status: allowed`, while 0xNightDev's shows `rejected`. Same plan, different org-level flags. What `fallback-percentage` actually *means* remains undocumented. [Full data →](02_RATELIMIT-HEADERS.md#8-extended-fallback-percentage-data-april-13-update-self-measured)
+The "Output efficiency" system prompt section (P3) appears to be gone. Scanned all **353 local JSONL session files** — every session after April 10 shows zero occurrences of the "straight to the point" / "do not overdo" text. First noticed by [@wjordan](https://github.com/wjordan) via system prompt archive diffing. [P3 update →](01_BUGS.md#p3--output-efficiency-system-prompt-change-v2164-march-3)
 
 Also measured first-turn cache performance across 143 sessions (≥3 requests each): **79% start with `cache_read=0`** on the first API call, even on v2.1.91+ where B1/B2 are fixed. This is structural — skills and CLAUDE.md land in `messages[0]` instead of the `system[]` prefix, breaking prefix-based caching for new sessions. Newer versions are improving this (community data shows ~29% on v2.1.104), but it's still a significant first-turn cost. [Details →](01_BUGS.md#note-residual-first-turn-cache-miss-post-fix-self-measured-april-13)
 
 ---
 
-### April 9 — 5 new bugs, 4 preliminary findings, changelog cross-reference
+### April 9 — 5 new bugs, 3 preliminary findings, changelog cross-reference
 
-**5 new bugs + 4 preliminary findings** from community-wide issue/comment analysis and fact-checking (April 6-9):
+**5 new bugs + 3 preliminary findings** from community-wide issue/comment analysis and fact-checking (April 6-9):
 
 | Bug | What | Evidence | Details |
 |-----|------|----------|---------|
@@ -34,7 +46,7 @@ Also measured first-turn cache performance across 143 sessions (≥3 requests ea
 | **B11** | Adaptive thinking zero-reasoning → fabrication | **Anthropic acknowledged (HN)** | [01_BUGS.md](01_BUGS.md#bug-11--adaptive-thinking-zero-reasoning-server-side-acknowledged) |
 | **B2a** | SendMessage resume: cache_read=0 (even system prompt) | cnighswonger confirmed | [01_BUGS.md](01_BUGS.md#bug-2a--sendmessage-resume-cache-miss-agent-sdk) |
 
-**Preliminary findings (MODERATE):** P1/P2 cache TTL dual tiers — two triggers for 1h→5m downgrade: telemetry disabled (`has repro`) and quota exceeded. P3 "Output efficiency" system prompt (v2.1.64). P4 third-party detection gap. See [01_BUGS.md — Preliminary Findings](01_BUGS.md#preliminary-findings-april-9-moderate--conditional-inclusion).
+**Preliminary findings (MODERATE):** P1/P2 cache TTL dual tiers — two triggers for 1h→5m downgrade: telemetry disabled (`has repro`) and quota exceeded. P3 "Output efficiency" system prompt (v2.1.64). ~~P4 (third-party detection gap) removed April 14 — insufficient evidence.~~ See [01_BUGS.md — Preliminary Findings](01_BUGS.md#preliminary-findings-april-9-moderate--conditional-inclusion).
 
 **Changelog cross-reference (v2.1.92–v2.1.97):** Six releases shipped zero fixes for the nine unfixed bugs. See [01_BUGS.md — Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v2197).
 
@@ -193,7 +205,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 | File | What | Updated |
 |------|------|---------|
-| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 4 preliminary (P1-P4) + changelog cross-reference (v2.1.92-101) | Apr 13 |
+| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 3 preliminary (P1-P3, P4 removed) + changelog cross-reference (v2.1.92-101) | Apr 14 |
 | **[09_QUICKSTART.md](09_QUICKSTART.md)** | Quick fix guide — Option A (v2.1.91+) vs Option B (v2.1.63 downgrade), npm vs standalone, diagnosis | Apr 9 |
 | **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle (Phase 1-9) + April 6-9 community acceleration + Anthropic response | Apr 9 |
 | **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | Apr 9 |

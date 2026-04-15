@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.101. Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 is acknowledged but unresolved. **Eight releases (v2.1.92–v2.1.101) introduced zero fixes for any of the nine unfixed bugs.** P3 ("Output efficiency" prompt) has been **observed removed** between v2.1.98 and v2.1.101 (self-verified: 353 JSONL sessions scanned, 0 occurrences after April 10). See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: April 13, 2026)
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.101. Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 is acknowledged but unresolved. **Eight releases (v2.1.92–v2.1.101) introduced zero fixes for any of the nine unfixed bugs.** P3 ("Output efficiency" prompt) has been **observed removed** between v2.1.98 and v2.1.101 (self-verified: 353 JSONL sessions scanned, 0 occurrences after April 10). See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: April 14, 2026)
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
@@ -136,6 +136,23 @@ tengu_summarize_tool_results: true    (system prompt tells model to expect clear
 **v2.1.91:** Added `_meta["anthropic/maxResultSizeChars"]` (up to 500K) — but this only applies to **MCP tool results**. Built-in tools (Read, Bash, Grep, Glob, Edit) are **not affected** by this override. The 200K aggregate cap remains for normal usage.
 
 **No env var override exists.** `DISABLE_AUTO_COMPACT`, `DISABLE_COMPACT`, and all other known environment variables do not touch this code path.
+
+### GrowthBook Flag Override — Controlled Elimination Test (April 10–14)
+
+On April 10, we deployed a proxy-based GrowthBook flag override (the approach community members documented in [#42542](https://github.com/anthropics/claude-code/issues/42542)) on our primary measurement machine (ubuntu-1, Max 20x).
+
+Five context-management flags (covering tool result budget, per-tool caps, time-based compaction, SM compact thresholds, and forced summarization) were overridden from their server-assigned restrictive defaults to permissive values.
+
+**Results:**
+
+| Period | Requests | B5 Events | B4 Events | Environment |
+|--------|----------|-----------|-----------|-------------|
+| Apr 1 – Apr 10 14:25 | 25,558 | 167,818 | 5,500 | No override — clean baseline |
+| **Apr 10 14:25 – Apr 14** | **4,919** | **0** | **0** | Override active |
+
+Last B5 event: **April 10, 14:25:04 KST**. Last B4 event: **April 10, 19:55:47 KST**. After these timestamps, zero events across 4,919 requests over 4 days — same machine, same account, same usage patterns. The only variable changed was the GrowthBook flag values.
+
+**Important caveat for data interpretation:** All proxy data in this repository from **April 11 onward** was collected with the flag override active. B4/B5 event counts from these dates reflect the overridden environment, not default CC behavior. The **unmodified baseline period is April 1–10** (25,558 requests). When citing cumulative event counts (e.g., "167,818 B5 events"), these are entirely from the baseline period.
 
 ---
 
@@ -303,13 +320,9 @@ This correlates with the regression timeline. Multiple users report the model ta
 
 **Status change:** PRELIMINARY → **OBSERVED REMOVED** (between v2.1.98 and v2.1.101). Not officially confirmed by Anthropic. The removal suggests internal recognition that the section was problematic.
 
-### P4 — Third-Party App Detection Gap (billing routing)
+### ~~P4 — Third-Party App Detection Gap (billing routing)~~ — REMOVED (April 14)
 
-**GitHub Issue:** [#45380](https://github.com/anthropics/claude-code/issues/45380)
-
-Raw Anthropic SDK calls with OAuth tokens bypass third-party detection and bill to plan allowance instead of extra usage. HTTP header evidence shows `overage-utilization: 0.0` (zero extra usage) while `5h-utilization` increases. 42+ related misclassification issues confirm systemic detection problems in both directions (legitimate CC flagged as third-party, and third-party calls not detected).
-
-**Caveat:** The "blocklist-based" mechanism is the most parsimonious explanation but not directly observed in source code.
+Previously listed here based on [#45380](https://github.com/anthropics/claude-code/issues/45380). Removed because: (1) the "blocklist-based" mechanism was never directly observed in source code — purely inferential; (2) our proxy data (23,374 requests, all first-party CC CLI) cannot verify or falsify the claim — would require controlled raw SDK call testing; (3) evidence level was insufficient relative to P1–P3. The 42+ related misclassification issues referenced in #45380 remain valid observations, but we cannot include them as a finding in this repository without independent measurement.
 
 ---
 
@@ -409,7 +422,7 @@ Eight releases shipped between v2.1.91 (our last benchmark) and v2.1.101 (latest
 | **P1** Telemetry-TTL | None. `has repro` label on #45381 but no fix announced. | ❓ Unknown |
 | **P2** TTL Dual Tiers | None. Server-side — would not appear in client changelog. | ❓ Unknown |
 | **P3** "Output Efficiency" prompt | Self-verified: 353 JSONL sessions scanned, text absent in all sessions after April 10. See [P3 update above](#p3--output-efficiency-system-prompt-change-v2164-march-3). | 🔄 **OBSERVED REMOVED** |
-| **P4** Third-Party Detection | None. Server-side billing routing. | ❓ Unknown |
+| ~~**P4** Third-Party Detection~~ | Removed April 14 — insufficient evidence for inclusion. | ❌ Removed |
 
 **Summary:** Anthropic shipped 8 releases over 12 days (v2.1.92–101) with zero fixes for any of the nine unfixed bugs. v2.1.98 focused on security hardening (6+ Bash permission bypass fixes). v2.1.101 fixed several resume/MCP bugs tangential to but not addressing B3–B11. B2a status upgraded from UNCLEAR to POSSIBLY FIXED based on v2.1.101 resume improvements, pending Agent SDK verification. P3 ("Output efficiency" prompt) observed removed between v2.1.98 and v2.1.101 (self-verified via JSONL scan).
 

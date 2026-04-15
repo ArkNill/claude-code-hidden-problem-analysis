@@ -2,13 +2,15 @@
 
 # Proxy & Bulk Scan — Full Dataset
 
-> **Date:** April 8, 2026 (data collection ongoing)
+> **Date:** April 14, 2026 (data collection ongoing)
 >
 > **Data sources:**
-> - cc-relay proxy SQLite database (`usage.db`, 22.5 MB) — 17,610 API requests intercepted (April 1-8)
-> - JSONL bulk scan via `jsonl_analyzer.py` — 532 session files, 158.3 MB (April 1-8)
+> - cc-relay proxy SQLite database (`usage.db`, 49 MB) — 30,477 API requests intercepted (April 1-14)
+> - JSONL bulk scan via `jsonl_analyzer.py` — 532 session files, 158.3 MB (April 1-8, not re-run for later dates)
 >
-> **Relationship to other documents:** [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) contains the JSONL client-side analysis (§1-8) and references key findings from this document. [01_BUGS.md](01_BUGS.md) contains bug definitions; this document provides the full measured data. [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) covers server-side rate limit header analysis (separate proxy capture, April 4-6 subset).
+> **Relationship to other documents:** [03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md) contains the JSONL client-side analysis (§1-8) and references key findings from this document. [01_BUGS.md](01_BUGS.md) contains bug definitions; this document provides the full measured data. [02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md) covers server-side rate limit header analysis.
+>
+> **Environment change:** On April 10, a proxy-based GrowthBook flag override was deployed. Data from **April 1–10** is from the unmodified environment (baseline). Data from **April 11–14** is from the overridden environment. B4/B5 event counts are entirely from the baseline period. See [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014) for details.
 
 ---
 
@@ -16,15 +18,16 @@
 
 ### 1.1 Totals
 
-| Metric | Value |
-|--------|-------|
-| Total API requests | **17,610** (snapshot at 2026-04-08 10:51 UTC; DB is live) |
-| Unique sessions | **129** |
-| Total input tokens | 12,438,471 |
-| Total output tokens | 8,214,875 |
-| Total cache_read | 1,692,619,956 |
-| Total cache_creation | 38,785,293 |
-| Date range | April 1 08:55 — April 8 10:51 UTC |
+| Metric | Value (Apr 1-8) | Value (Apr 1-14, latest) |
+|--------|-----------------|--------------------------|
+| Total API requests | 17,610 | **30,477** |
+| Unique sessions | 129 | **230** |
+| Total input tokens | 12,438,471 | **28,477,426** |
+| Total output tokens | 8,214,875 | **15,007,647** |
+| Total cache_read | 1,692,619,956 | **2,988,290,095** |
+| Total cache_creation | 38,785,293 | **64,098,470** |
+| Overall cache % | — | **97.0%** |
+| Date range | Apr 1–8 | **Apr 1–14** |
 
 ```mermaid
 xychart-beta
@@ -53,19 +56,19 @@ xychart-beta
 ## 2. Model Distribution (Opus vs Subagent)
 
 ```mermaid
-pie title Requests by Model
-    "Opus (68%)" : 11959
-    "Haiku (21%)" : 3781
-    "Other (11%)" : 1870
+pie title Requests by Model (Apr 1-14, n=30,477)
+    "Opus (67%)" : 20457
+    "Haiku (23%)" : 7157
+    "Other (10%)" : 2867
 ```
 
-| Model | Requests | Cache % | Total Input | Total Output | Total Cache Read | Total Cache Create |
-|-------|----------|---------|-------------|--------------|------------------|--------------------|
-| **Opus** | 11,959 | **98.8%** | 750,006 | 6,452,511 | 1,611,644,338 | 31,529,809 |
-| **Haiku** (subagent) | 3,781 | **58.1%** | 11,688,980 | 1,621,344 | 83,424,554 | 7,406,992 |
-| Other/empty | 1,870 | 0.0% | 0 | 179,535 | 0 | 0 |
+| Model | Requests (Apr 1-8) | Requests (Apr 1-14) | Cache % | Total Cache Read | Total Cache Create |
+|-------|--------------------|--------------------|---------|------------------|--------------------|
+| **Opus** | 11,959 | **20,457** | **98.2%** | 2,849,197,725 | 52,368,359 |
+| **Haiku** (subagent) | 3,781 | **7,157** | **78.2%** | 139,788,794 | 11,733,883 |
+| Other/empty | 1,870 | **2,867** | 0.0% | 0 | 0 |
 
-Haiku subagent requests have **58.1% cache efficiency** vs Opus **98.8%** — a 40 percentage point gap. This aligns with the JSONL finding ([03_JSONL-ANALYSIS.md §4](03_JSONL-ANALYSIS.md#4-main-sessions-vs-subagents)) that subagents account for 62% of cache_create despite only 17% of cache_read.
+Haiku subagent cache efficiency improved from 58.1% (Apr 1-8) to **78.2%** (Apr 1-14) — likely due to the GrowthBook flag override eliminating B4/B5 context mutation in later sessions (subagent cold starts are less affected by already-cleared context). Opus remains stable at 98%+. The subagent gap narrowed from 40pp to 20pp.
 
 ---
 
@@ -165,28 +168,32 @@ Burst peaks are driven by **Haiku subagent fan-out** (Agent tool spawning parall
 
 ## 7. Budget Enforcement (Bug 5) — Full Data
 
+> **Note:** All B5 events are from the **unmodified baseline period** (April 1–10). After the GrowthBook flag override on April 10, zero B5 events were recorded across 4,919 requests. See [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014).
+
 ```mermaid
 xychart-beta
-    title "Budget Enforcement Events by Day"
-    x-axis ["04-03","04-04","04-05","04-06","04-07","04-08"]
-    y-axis "Events" 0 --> 20000
-    bar [18036,2815,2170,15708,19409,14701]
+    title "Budget Enforcement Events by Day (baseline period only)"
+    x-axis ["04-03","04-04","04-05","04-06","04-07","04-08","04-09","04-10"]
+    y-axis "Events" 0 --> 65000
+    bar [18036,2815,1714,16164,19409,20045,64175,25460]
 ```
 
-| Metric | Previous (Apr 3) | Current (Apr 1-8) | Change |
-|--------|------------------|--------------------|--------|
-| Total events | 261 | **72,839** | **279x** |
-| Sessions affected | — | **20** | — |
-| Truncation rate | — | **100%** | — |
+| Metric | Apr 3 only | Apr 1-8 | Apr 1-14 (total, all baseline) |
+|--------|-----------|---------|-------------------------------|
+| Total events | 261 | 59,609 | **167,818** |
+| Sessions affected | 1 | ~20 | **218** |
+| Truncation rate | 100% | 100% | **100%** |
+| Events after override (Apr 11-14) | — | — | **0** (4,919 requests) |
 
-**Content size distribution:**
+**Content size distribution (n=167,818):**
 
 | Bucket | Events | % |
 |--------|--------|---|
-| 0-10 chars | 6,843 | 9.4% |
-| 11-100 chars | 65,996 | **90.6%** |
+| 0-5 chars | 10,154 | 6.1% |
+| 6-10 chars | 9,274 | 5.5% |
+| 11-50 chars | 148,390 | **88.4%** |
 
-90.6% of budget enforcement events truncate tool results to 11-100 characters (max observed: 49 chars). The remaining 9.4% truncate to 0-10 characters. Average content size across all events: 24 chars. **No event retains more than 49 characters** — every tool result that crosses the budget threshold is reduced to a stub.
+88.4% of budget enforcement events truncate tool results to 11-50 characters. The remaining 11.6% truncate to 0-10 characters. **No event retains more than 50 characters** — every tool result that crosses the budget threshold is reduced to a stub.
 
 All events target `tool_result` (100%) — no other content types are affected.
 
@@ -204,21 +211,24 @@ Events are front-loaded — 34,568 in the first 25% of session lifetime vs 9,194
 
 ## 8. Microcompact (Bug 4) — Full Data
 
-| Metric | Previous (Apr 3) | Current (Apr 1-8) | Change |
-|--------|------------------|--------------------|--------|
-| Total events | 327 | **3,782** | **12x** |
-| Total items cleared | — | **15,998** | — |
+> **Note:** All B4 events are from the **unmodified baseline period** (April 1–10). After the GrowthBook flag override, zero B4 events across 4,919 requests.
 
-**Cleared count distribution:**
+| Metric | Apr 3 only | Apr 1-8 | Apr 1-14 (total, all baseline) |
+|--------|-----------|---------|-------------------------------|
+| Total events | 327 | 3,325 | **5,500** |
+| Total items cleared | — | 15,998 | **18,858** |
+| Events after override (Apr 11-14) | — | — | **0** (4,919 requests) |
+
+**Cleared count distribution (n=5,500):**
 
 | Items Cleared | Events | % |
 |---------------|--------|---|
-| 1 | 1,735 | 45.9% |
-| 2 | 761 | 20.1% |
-| 3-5 | 606 | 16.0% |
-| 6-10 | 156 | 4.1% |
-| 11-20 | 337 | 8.9% |
-| 20+ | 187 | 4.9% |
+| 1 | 2,806 | 51.0% |
+| 2 | 1,058 | 19.2% |
+| 3-5 | 956 | 17.4% |
+| 6-10 | 156 | 2.8% |
+| 11-20 | 337 | 6.1% |
+| 20+ | 187 | 3.4% |
 
 **Notable pattern:** cleared_count=22 has a distinct spike of **183 events** (4.8% of total), far more than adjacent values. This suggests a **systematic batch clearing threshold** — when sessions grow long enough, Claude Code clears all 22 tool results in a single operation. This is not gradual pruning but a cliff.
 

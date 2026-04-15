@@ -10,10 +10,10 @@
 
 ## Summary
 
-Anthropic's API returns `anthropic-ratelimit-unified-*` headers on every response. Claude Code reads only `representative-claim` for the usage bar and discards the rest. Our cc-relay proxy captures all of them. From 3,702 requests with headers (April 4–6), we identified a **dual sliding window** system — a 5-hour window and a 7-day window — and measured the per-1% utilization cost in tokens.
+Anthropic's API returns `anthropic-ratelimit-unified-*` headers on every response. Claude Code reads only `representative-claim` for the usage bar and discards the rest. Our cc-relay proxy captures all of them. From **23,374 requests with headers** (April 4–14), we identified a **dual sliding window** system — a 5-hour window and a 7-day window — and measured the per-1% utilization cost in tokens.
 
 **Key findings:**
-- The 5h window is always the bottleneck (`representative-claim` = `five_hour` in 100% of requests)
+- The 5h window is the bottleneck in **77.4%** of requests (`representative-claim` = `five_hour`). **The 7d window can become the binding constraint** — observed on April 9–10 when 7d utilization reached 0.85–0.97 (see [§9](#9-seven_day-bottleneck-first-observation-april-914))
 - Each 1% of 5h utilization costs roughly 1.5M–2.1M visible tokens (96–99% of which is cache_read)
 - Visible output tokens per 1% are only 9K–16K — suggesting thinking tokens or cache-read weighting (or both) drive most of the quota cost
 - The 7d counter accumulates proportionally to 5h usage (ratio ~0.12–0.17)
@@ -47,13 +47,14 @@ anthropic-ratelimit-unified-overage-utilization: 0.0
 | `overage-status` | Extra-usage billing state |
 | `overage-utilization` | Extra-usage budget consumed |
 
-### Aggregate observations (n=3,702)
+### Aggregate observations (n=3,702 initial; n=23,374 as of April 14)
 
-- `representative-claim` = `five_hour` in **100%** of requests
-- `fallback-percentage` = `0.5` in 100% of requests
-- `overage-utilization` = `0.0` throughout
+- `representative-claim` = `five_hour` in **77.4%** of requests (18,095/23,374); `seven_day` in **22.6%** (5,279/23,374). Initial 3,702-request sample (April 4–6) showed 100% five_hour — the 7d bottleneck only appeared when 7d utilization approached capacity (April 9–10). See [§9](#9-seven_day-bottleneck-first-observation-april-914).
+- `fallback-percentage` = `0.5` in 100% of requests (23,374/23,374 — zero variance across 14 days)
+- `overage-status` = `allowed` in 100% of requests; `overage-utilization` = `0.0` throughout
 - 5h reset timestamps observed: 14:00, 19:00, 01:00, 12:00, 18:00, 23:00, 04:00, 09:00 KST — mostly 5h apart, with two exceptions: 19:00→01:00 is 6h, and 01:00→12:00 is 11h (likely an unobserved window boundary during inactive hours). Exact boundary pattern needs more data.
 - 7d reset: April 10, 12:00 KST (fixed weekly, consistent across all responses)
+- Max 5h utilization observed: **0.92**; max 7d: **0.99** (April 10)
 
 ---
 
@@ -175,18 +176,18 @@ Both analyses measure **client-side token consumption** (what was sent/received)
 
 ---
 
-## 8. Extended `fallback-percentage` Data (April 13 update, self-measured)
+## 8. Extended `fallback-percentage` Data (April 14 update, self-measured)
 
-> **Added:** April 13, 2026 — extended proxy data from our own cc-relay, plus community cross-account observations from [#41930](https://github.com/anthropics/claude-code/issues/41930).
+> **Added:** April 13, 2026 — extended proxy data from our own cc-relay, plus community cross-account observations from [#41930](https://github.com/anthropics/claude-code/issues/41930). **Updated:** April 14 — expanded to 23,374 requests.
 
-Section 1 documented `fallback-percentage` = `0.5` across our initial 3,702-request sample (April 4–6). Our proxy has now accumulated **27,708 requests** (April 1–13, 13 days). The field remains **0.5 on every single request — zero variance across the entire dataset.**
+Section 1 documented `fallback-percentage` = `0.5` across our initial 3,702-request sample (April 4–6). Our proxy has now accumulated **23,374 requests with rate limit headers** (April 4–14, 11 days). The field remains **0.5 on every single request — zero variance across the entire dataset.**
 
 | Metric | Value |
 |--------|-------|
-| Total requests with headers | **27,708** |
-| `fallback-percentage` = 0.5 | **27,708 (100%)** |
-| `overage-status` = allowed | **27,708 (100%)** |
-| Date range | April 1 – April 13, 2026 |
+| Total requests with headers | **23,374** |
+| `fallback-percentage` = 0.5 | **23,374 (100%)** |
+| `overage-status` = allowed | **23,374 (100%)** |
+| Date range | April 4 – April 14, 2026 |
 | Plan | Max 20x ($200/mo) |
 | Source | cc-relay proxy (our own) |
 
@@ -217,9 +218,54 @@ The **exact semantics** of `fallback-percentage` are undocumented by Anthropic. 
 
 ---
 
-## 9. Next Steps
+## 9. `seven_day` Bottleneck — First Observation (April 9–14)
 
-- **Thinking token isolation test:** Run sessions with thinking disabled and compare per-1% cost
+> **Added:** April 14, 2026
+
+Sections 1–7 reported `representative-claim` = `five_hour` in 100% of our initial 3,702 requests (April 4–6). With the expanded dataset (23,374 requests, April 4–14), the 7d window was observed as the binding constraint for the first time:
+
+| Day | `five_hour` | `seven_day` | Avg 5h util | Avg 7d util |
+|-----|-------------|-------------|-------------|-------------|
+| Apr 4–8 | 12,072 | 0 | 0.10–0.30 | 0.10–0.63 |
+| **Apr 9** | **141** | **4,148** | 0.037 | **0.848** |
+| **Apr 10** | 1,366 | **1,131** | 0.229 | **0.966** |
+| Apr 11–14 | 4,518 | 0 | 0.019–0.306 | 0.195–0.442 |
+
+**What happened:** By April 9, cumulative 7d usage reached 0.85 (approaching the weekly cap). The 5h window was nearly empty after a reset (0.037), but the 7d window was the tighter constraint — so `representative-claim` flipped to `seven_day`. On April 10, 7d peaked at **0.966** (near-exhaustion). After the weekly reset (April 10, 12:00 KST), 7d dropped and `five_hour` resumed as the bottleneck.
+
+**Implications:**
+1. The 7d window is **not merely cosmetic** — it can become the active rate limiter during sustained heavy usage
+2. Users who use CC intensively throughout the week (not just in bursts) may hit the 7d cap before 5h caps
+3. The 5h utilization distribution shifts: with 7d binding, 5h stays low even during active work — the displayed usage bar may understate actual constraint
+
+**Corrected finding:** The 5h window is the bottleneck in **77.4%** of requests (18,095/23,374), not 100% as previously reported. The 7d window was the bottleneck in **22.6%** (5,279/23,374), concentrated in April 9–10.
+
+---
+
+## 10. Data Interpretation Caveat — Environment Changes (April 14)
+
+> **Added:** April 14, 2026
+
+Our proxy data spans April 1–14 (30,477 total requests, 23,374 with rate limit headers). The measurement environment changed during this period:
+
+| Period | Requests | Environment | Use for |
+|--------|----------|-------------|---------|
+| Apr 1 – Apr 10 14:25 | 25,558 | **Unmodified** CC — no flag overrides | Baseline measurements, bug event counts, per-1% cost analysis |
+| Apr 10 14:25 – Apr 14 | 4,919 | GrowthBook flag override active (B4/B5 flags set to permissive values, see [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014)) | Override effect measurement only |
+
+**Why this matters:**
+- B4/B5 event counts (167,818 and 5,500) are entirely from the unmodified period
+- Rate limit header analysis (§1–7) uses April 4–6 data (unmodified period) and is unaffected
+- The `seven_day` bottleneck observation (§9) spans both periods but is driven by quota utilization levels, not flag overrides — flag overrides affect context mutation, not quota accounting
+- `fallback-percentage` data (§8) spans both periods; the value is 0.5 in both, confirming the override does not affect this field
+
+When citing data from this repository, note the measurement period to ensure the correct environmental context.
+
+---
+
+## 11. Next Steps
+
+- **Thinking token isolation test:** Run sessions with thinking disabled and compare per-1% cost (planned but not yet executed — the thinking token hypothesis remains unverified)
 - **Cross-tier comparison:** If community members on other plan tiers run proxies, we can compare per-1% costs across plans
 - **`fallback-percentage` monitoring:** Track whether the value changes over time on our account
 

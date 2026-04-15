@@ -87,7 +87,7 @@ tengu_summarize_tool_results: True
 **결과:**
 - **242,094자** 시점에서 budget 초과가 감지되었습니다 (200K 상한 초과)
 - `suspiciously_small` (의심스러울 정도로 작음) 마커가 붙은 **261건의 budget 이벤트**가 발생했습니다
-- 도구 결과가 **1-41자**로 축소되었습니다 (원래는 수천 자 이상이었습니다)
+- 도구 결과가 **1-41자**로 축소되었습니다 (원래는 수천 자 이상; 1주일 전체 최대값: 49자)
 - 예시: `msg[32] 1 char`, `msg[42] 2 chars`, `msg[172] 22 chars` (x33 발생)
 
 **v2.1.91 검증:**
@@ -129,7 +129,7 @@ v2.1.91에서 대화 기록 연결 끊김 수정이 추가되었습니다.
 
 ---
 
-### Cache TTL (캐시 유효 시간, Layer 0, Luong NGUYEN 분석 기반)
+### Cache TTL (캐시 유효 시간, Layer 0, [@luongnv89](https://github.com/luongnv89)의 [cache TTL 분석](https://github.com/luongnv89/cc-context-stats/blob/main/context-stats-cache-misses.md) 기반)
 
 **외부 분석 결과:** 13시간 방치 → 350K 토큰 캐시를 처음부터 다시 구축 = 세션 budget의 9%를 소모합니다.
 **우리 데이터:** 5-26분 방치 → **96%+ 캐시 유지**. 캐시가 만료되려면 훨씬 더 오래 쉬어야 합니다.
@@ -273,7 +273,7 @@ v2.1.91에서 대화 기록 연결 끊김 수정이 추가되었습니다.
 - `autocompact thrash loop detection` — 실제로는 v2.1.89에 포함
 
 ### v2.1.89 (4월 1일)
-- `autocompact thrash loop` 3회 재시도 후 중단 — **B6 부분 수정**
+- `autocompact thrash loop` 3회 재시도 후 중단 — **B6 부분 수정** (autocompact thrash loop — [07_TIMELINE.md](../07_TIMELINE.md) 참조)
 - `tool schema bytes changing mid-session` — **B1 부분 수정**
 - `nested CLAUDE.md re-injection` — 컨텍스트 비대화 수정
 - `StructuredOutput schema cache ~50% failure` — 별도 cache 버그
