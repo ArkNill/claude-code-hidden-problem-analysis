@@ -266,7 +266,7 @@ This analysis builds on work by many community members who independently investi
 |-----|-----------------|
 | [@Sn3th](https://github.com/Sn3th) | Discovered microcompact mechanisms (Bug 4), GrowthBook flags, budget pipeline (Bug 5) |
 | [@rwp65](https://github.com/rwp65) | Discovered client-side false rate limiter (Bug 3) |
-| [@cnighswonger](https://github.com/cnighswonger) | Built [cache-fix interceptor](https://github.com/cnighswonger/claude-code-cache-fix) — 4,700 calls, 98.3% cache hit, TTL tier detection |
+| [@cnighswonger](https://github.com/cnighswonger) | Built [cache-fix interceptor](https://github.com/cnighswonger/claude-code-cache-fix), 4-session controlled comparison with 14K+ metered calls confirming fallback-percentage invariance and zero model substitution on Max 5x ([Issue #4](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/4)) |
 | [@wpank](https://github.com/wpank) | 47,810 requests tracked, v2.1.63 vs v2.1.96 quantitative comparison |
 | [@seanGSISG](https://github.com/seanGSISG) | Independent corroboration with 179K API calls (Dec 2025 – Apr 2026) — before-data, cache_read weight validation, thinking token estimation |
 | [@fgrosswig](https://github.com/fgrosswig) | 64x budget reduction forensics — 18-day JSONL analysis |

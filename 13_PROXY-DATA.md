@@ -70,6 +70,17 @@ pie title Requests by Model (Apr 1-16, n=38,996)
 
 Haiku subagent cache efficiency improved from 58.1% (Apr 1-8) to **78.2%** (Apr 1-14) — likely due to the GrowthBook flag override eliminating B4/B5 context mutation in later sessions (subagent cold starts are less affected by already-cleared context). Opus remains stable at 98%+. The subagent gap narrowed from 40pp to 20pp.
 
+### Model request/response verification (April 19 update)
+
+Cross-checked `model` field in request against `raw_usage.model` in response across 36,956 requests where both fields were present:
+
+| Request model | Response model | Count |
+|---|---|---:|
+| claude-opus-4-6 | claude-opus-4-6 | 28,527 |
+| claude-haiku-4-5-20251001 | claude-haiku-4-5-20251001 | 8,429 |
+
+**Zero mismatches.** Every Opus request received an Opus response; every Haiku request received Haiku. No evidence of server-side model substitution ("spoofing") in this dataset. All Haiku traffic is legitimate subagent calls — confirmed by: average request body 8× smaller than Opus (73KB vs 578KB), average `cache_read` 8× lower (19K vs 156K), and zero Haiku-only sessions (all 192 sessions with Haiku also contain Opus turns).
+
 ---
 
 ## 3. Context Growth Rate (53 Opus sessions, ≥20 requests, ≥10 min)

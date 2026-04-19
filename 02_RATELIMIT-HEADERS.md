@@ -203,10 +203,11 @@ Starting April 11, two independent researchers published cross-account data in [
 
 ¹ 11,502 of 11,505 rows contained the field; 3 were bootstrap calls where the field was not yet populated.
 ² 0xNightDev stated "every single request" but did not provide a numerical count.
+³ cnighswonger subsequently confirmed 0.5 invariance across 14,000+ metered calls (April 4–16) in a separate controlled 4-session comparison on the same Max 5x account ([Issue #4](https://github.com/ArkNill/claude-code-hidden-problem-analysis/issues/4)).
 
 ### What we know
 
-1. **Consistency within accounts:** Our 38,996 requests over 16 days (dataset `ubuntu-1-stock`, April 1–16) and cnighswonger's 11,502 over 7 days both show zero variance. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
+1. **Consistency within accounts:** Our 38,996 requests over 16 days (dataset `ubuntu-1-stock`, April 1–16) and cnighswonger's 11,502 over 7 days both show zero variance. A subsequent controlled 4-session comparison on the same account confirmed this across 14,000+ metered calls³. The field is a **fixed per-account value**, not dynamically adjusted per request, time of day, or load.
 2. **Variation across time:** 0.2 in November 2025 (#12829) vs 0.5 in April 2026 — the value can change over time.
 3. **`overage-status` diverges across accounts on the same plan:** Our Max 20x and cnighswonger's Max 5x both show `allowed`, while 0xNightDev's Max 5x shows `rejected` + `org_level_disabled`.
 
