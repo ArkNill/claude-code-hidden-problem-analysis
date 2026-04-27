@@ -141,7 +141,7 @@ pie title Bug Status (12 identified, verified through v2.1.119)
     "By Design (Server)" : 1
 ```
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.112** (latest). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.119** (latest). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
 
 | Bug | What It Does | Impact | Status | Details |
 |-----|-------------|--------|--------|---------|
@@ -160,7 +160,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs 
 
 ### What You Can Do
 
-1. **Update to v2.1.91+** — fixes the cache regression (worst drain). v2.1.92–108 add no bug fixes for issues tracked here but are safe to use
+1. **Update to v2.1.91+** (cap at **v2.1.109** — see [4.7 advisory](16_OPUS-47-ADVISORY.md)) — fixes the cache regression (worst drain). v2.1.92–109 add no bug fixes for issues tracked here but are safe to use. **Do not upgrade to v2.1.110+** (Opus 4.7 risks)
 2. **npm or standalone — both fine on v2.1.91** (Sentinel gap closed)
 3. **Don't use `--resume` or `--continue`** — replays full context as billable input
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
@@ -262,7 +262,7 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
   - **Plan:** Max 20 ($200/mo)
   - **OS:** Linux (Ubuntu), Linux workstation (ubuntu-1)
   - **CC mode:** native `~/.claude` (CC stock, no flag overrides or other instrumentation)
-  - **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.112**
+  - **Versions tested:** v2.1.91 (benchmark), v2.1.90, v2.1.89, v2.1.68. Changelog verified through **v2.1.119**
   - **Monitoring:** cc-relay v2 transparent proxy — **45,884 total requests across 320 sessions (April 1–22)**
 - **Parallel datasets (tracked separately, see [14_DATA-SOURCES.md](14_DATA-SOURCES.md)):** `ubuntu-1-override` (same machine/account, isolated override environment with a GrowthBook flag override active since April 10 — additional components kept private), `win-1-stock` (Windows 11, Max 5x — research/validation only, not used for the main published analysis)
 - **Date:** April 24, 2026
