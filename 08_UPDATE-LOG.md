@@ -6,6 +6,76 @@
 
 ---
 
+## April 27, 2026 — Factual Corrections Across 3 Documents
+
+**Focus:** Cross-check all published documents against CHANGELOG v2.1.110–v2.1.119 and current GitHub issue statuses. Correct factual errors and stale references.
+
+**What was done:**
+- Fetched full CHANGELOG (v2.1.110–v2.1.119, 10 releases) and cross-referenced against all tracked issues from 16_ and 17_ chapters
+- Verified current GitHub status of 12 tracked issues via `gh issue view`: #49302, #49503, #49541, #49555, #49585, #49593, #49618, #49747, #52228, #52502, #52522, #52534
+- Full read-through of 16_, 17_, README, CROSS-VALIDATION, DATASET-ARKNILL, 09_QUICKSTART, 01_BUGS for factual accuracy
+
+**Corrections applied (3 commits):**
+
+1. **17_ Section 3.3 factual error** (amend to `4a8e964`): Claimed #52522 auto-compact threshold change was "Not mentioned in the v2.1.117 CHANGELOG." This is incorrect — v2.1.117 CHANGELOG explicitly documents: "Fixed Opus 4.7 sessions showing inflated `/context` percentages and autocompacting too early — Claude Code was computing against a 200K context window instead of Opus 4.7's native 1M." Corrected to acknowledge the CHANGELOG entry while noting the "Fixed" framing obscures the 5x cost impact.
+
+2. **README stale version references** (`8bc38f8`): "v2.1.112 (latest)" → "v2.1.119" in 2 locations (Current Status body text + Environment section). Also capped the "Update to v2.1.91+" advice with explicit v2.1.109 upper bound and 4.7 advisory link, resolving inconsistency with the page-top warning.
+
+3. **CROSS-VALIDATION + DATASET metadata** (`09fc28a`): Removed stale "Status: Working document (not committed)" headers from both documents — they were committed in `5500c2e` (April 22).
+
+**Issue status snapshot (April 27):**
+
+| Issue | Apr 24 status | Apr 27 status | Changed? |
+|-------|---------------|---------------|----------|
+| #49302 (cache metering) | OPEN | OPEN | No |
+| #49503 (model pin bypass) | OPEN | OPEN | No |
+| #49585 (smoosh cache) | OPEN | OPEN | No |
+| #49618 (bash classifier) | OPEN | **CLOSED** | ✅ |
+| #49593 (context bloat) | OPEN | **CLOSED** | ✅ |
+| #49747 (XML/JSON mixing) | OPEN | OPEN | No |
+| #52228 (self-conversation) | OPEN | OPEN | No |
+| #52502 (subagent model pin) | OPEN | OPEN | No |
+| #52534 (effort override) | OPEN | OPEN | No |
+
+Two issues closed since April 24, but neither changes the upgrade recommendation — 9 checklist items remain unresolved.
+
+**No new chapter or content additions.** All changes are corrections to existing documents.
+
+**Published:**
+- [17_OPUS-47-POSTMORTEM-ANALYSIS.md](17_OPUS-47-POSTMORTEM-ANALYSIS.md) — Section 3.3 factual correction
+- [README.md](README.md) — stale version references + advisory consistency
+- [CROSS-VALIDATION-20260422.md](CROSS-VALIDATION-20260422.md) — metadata fix
+- [DATASET-ARKNILL-20260422.md](DATASET-ARKNILL-20260422.md) — metadata fix
+
+---
+
+## April 24, 2026 — Postmortem Analysis: What the Changelog Didn't Say
+
+**Focus:** Cross-check Anthropic's [April 23 postmortem](https://www.anthropic.com/engineering/april-23-postmortem) against the full public CHANGELOG (3,285 lines, all versions v2.1.68–v2.1.119). Identify post-postmortem issues on v2.1.117–119.
+
+**What was done:**
+- Downloaded and searched the complete CHANGELOG for all terms related to the 3 admitted bugs (effort default, thinking cache, verbosity prompt)
+- Mapped each admitted bug to its introduction version, fix version, and CHANGELOG presence/absence
+- Spot-checked 8 GitHub issues via `gh issue view` (7 confirmed, 1 partially confirmed)
+- Verified 10 press/community URLs via WebFetch
+- Cross-checked 10 numeric claims against primary sources
+- Applied 3 corrections during the cross-check process (version attribution C1, failure count C2, quote attribution C3)
+- Identified 5 new issues on v2.1.117–119 that fall outside the postmortem's scope
+
+**Findings:**
+- **CHANGELOG transparency gap:** 2 of 3 admitted bugs have **zero CHANGELOG documentation** — the thinking cache clearing bug (v2.1.85 → v2.1.101 fix) and the verbosity system prompt (v2.1.111 → v2.1.116 revert) were introduced and removed without any public record
+- **Effort default framing:** The one documented change (effort `high` → `medium`) was framed as a product improvement ("sweet spot"), never acknowledged as a regression. The word "revert" never appears in any CHANGELOG entry related to effort defaults
+- **Pro/Max 48-day gap:** Max subscribers (paying $100–$200/month) remained on `medium` effort for 48 days (March 4 – April 21) — the longest of any tier. v2.1.94 (April 7) fixed API-key/Bedrock/Vertex/Team/Enterprise; Pro/Max waited until v2.1.117 (April 21)
+- **Post-postmortem issues (5 new):** #52502 (subagent model pin ignored — $10.87 vs $0.0005), #52534 (effort override bypass via `unpinOpus47LaunchEffort` flag), #52522 (auto-compact 5x usage), #52228 (self-conversation + unilateral action), #52652 (CLAUDE.md rule violation)
+- **36 claims cross-checked:** 28 confirmed, 5 partially confirmed, 3 not relied upon
+
+**Published:**
+- [17_OPUS-47-POSTMORTEM-ANALYSIS.md](17_OPUS-47-POSTMORTEM-ANALYSIS.md) (new) — full postmortem cross-check with 7 sections
+- [README.md](README.md) — April 24 latest update section, TL;DR updated with postmortem link
+- [16_OPUS-47-ADVISORY.md](16_OPUS-47-ADVISORY.md) — Section 7 checklist updated with effort FIXED + 2 new post-postmortem items (#52502, #52534), pointer to 17_ added at document top
+
+---
+
 ## April 22, 2026 — Three-Dataset Cross-Validation + Community Response
 
 **Focus:** Cross-validate cache_read weight change findings across three independent datasets (ArkNill 45.8K, seanGSISG 215K, cnighswonger 101K). Respond to Issue #3 and #4 community contributions. Send first email response to cnighswonger.
