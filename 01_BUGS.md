@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 8a, 9, 10 remain **unfixed** as of v2.1.108. Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 is acknowledged but unresolved. **Eight releases (v2.1.92–v2.1.101) introduced zero fixes for any of the nine unfixed bugs.** P3 ("Output efficiency" prompt) has been **observed removed** between v2.1.98 and v2.1.101 (self-verified: 353 JSONL sessions scanned, 0 occurrences after April 10). See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: April 15, 2026)
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 9, 10 remain **unfixed** as of v2.1.126. Bug 8a received a **symptom mitigation** in v2.1.121 (corrupt line skip on resume; root cause unfixed). Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 symptoms **reduced** via effort default restoration (v2.1.117). P1 (telemetry→TTL downgrade) **fixed** in v2.1.108 (community verified). P3 ("Output efficiency" prompt) **observed removed** between v2.1.98 and v2.1.101. **18+ releases (v2.1.92–v2.1.126) over 34 days introduced zero fixes for six of the nine unfixed bugs (B3-B5, B8, B9, B10).** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: May 4, 2026)
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
@@ -425,6 +425,32 @@ Eight releases shipped between v2.1.91 (our last benchmark) and v2.1.101 (latest
 | ~~**P4** Third-Party Detection~~ | Removed April 14 — insufficient evidence for inclusion. | ❌ Removed |
 
 **Summary:** Anthropic shipped 8 releases over 12 days (v2.1.92–101) with zero fixes for any of the nine unfixed bugs. v2.1.98 focused on security hardening (6+ Bash permission bypass fixes). v2.1.101 fixed several resume/MCP bugs tangential to but not addressing B3–B11. B2a status upgraded from UNCLEAR to POSSIBLY FIXED based on v2.1.101 resume improvements, pending Agent SDK verification. P3 ("Output efficiency" prompt) observed removed between v2.1.98 and v2.1.101 (self-verified via JSONL scan).
+
+**v2.1.120–v2.1.126 (added May 4):**
+
+> Seven releases shipped between v2.1.120 (April 29) and v2.1.126 (May 2). v2.1.120 fixed a host-wide crash from file descriptor exhaustion in the Bash tool's `find`. v2.1.121 addressed three memory leaks (multi-GB RSS, `/usage` ~2GB, progress events). v2.1.122–126 focused on OAuth, MCP, Windows PowerShell support, and security. **No fixes for B3–B5, B8, or B11.** B8a received a symptom mitigation (corrupt line skip on resume). B9/B10 issues were closed without confirmed fixes in prior versions.
+
+| Bug | Changelog mentions (v2.1.120–126) | Verdict |
+|-----|-------------------------------------|---------|
+| **B3** False RL | v2.1.122: "Usage tab shows 5-hour and weekly usage immediately" — UI display, not client-side synthetic blocker. v2.1.126: "Fixed API retry countdown sticking at 0s" — server retry display. | ❌ **UNFIXED** (#40584 OPEN) |
+| **B4** Microcompact | v2.1.120: "Auto-compact in auto mode now displays `auto`" — display label only. Server-controlled via GrowthBook. | ❌ **UNFIXED** (#42542 OPEN) |
+| **B5** Budget Cap | No mention of `applyToolResultBudget()` or aggregate tool result cap. | ❌ **UNFIXED** |
+| **B8** Log Duplication | No mention of PRELIM/FINAL entries or JSONL token inflation. | ❌ **UNFIXED** (#41346 OPEN) |
+| **B8a** JSONL Corruption | v2.1.121: "Fixed `--resume` failing on large sessions when a transcript line was corrupted by an unclean shutdown — the corrupt line is now skipped." Root cause (non-atomic concurrent writes) **not addressed** — corrupt lines are tolerated on resume rather than prevented. #21321 (meta-issue, 10+ duplicates) remains OPEN. | ⚠️ **SYMPTOM MITIGATED** (was UNFIXED) |
+| **B9** /branch Inflation | v2.1.122: "Fixed `/branch` producing forks that fail with 'tool\_use ids were found without tool\_result blocks'" — fixes a **different** `/branch` failure (rewound timeline entries), not the message-history duplication causing 6%→73% context inflation. #45419 closed as duplicate of #40363; **#40363 remains OPEN**. | ❌ **UNFIXED** (#40363 OPEN) |
+| **B10** TaskOutput Thrash | No mention of TaskOutput deprecation message. v2.1.121 fixed three memory leaks (multi-GB RSS, `/usage` leak, progress event leak) — related to memory pressure but not the 21x context injection from deprecation message. #44703 closed without engineer comment or fix confirmation. | ❌ **UNFIXED** (issue closed without fix) |
+| **B11** Zero Reasoning | v2.1.117 (prior): effort `high` restored for Pro/Max. No new progress in v2.1.120–126. | ⚠️ **SYMPTOMS REDUCED** (unchanged) |
+| **B2a** SendMessage Cache | No mention of Agent SDK `SendMessage` orchestrator cache path. | ❓ **POSSIBLY FIXED** (unchanged) |
+
+**Preliminary findings update (v2.1.120–126):**
+
+| Finding | Update | Verdict |
+|---------|--------|---------|
+| **P1** Telemetry-TTL | **#45381 CLOSED** (April 13). Community verified fix in v2.1.108: `DISABLE_TELEMETRY=1` and `DISABLE_NONESSENTIAL_TRAFFIC=1` both retain 1h TTL (`cache_creation_1h` active, `cache_creation_5m=0`). Verified by [@EmpireJones](https://github.com/EmpireJones). | ✅ **FIXED** (v2.1.108) |
+| **P2** TTL Dual Tiers | Server-side — no client changelog expected. | ❓ Unknown (unchanged) |
+| **P3** "Output Efficiency" prompt | No change — remains removed. | 🔄 **OBSERVED REMOVED** (unchanged) |
+
+**Cumulative summary (v2.1.92–v2.1.126, 34 days, 18+ releases):** Of the original nine unfixed bugs (B3–B5, B8, B8a, B9, B10, B11, B2a), **six remain confirmed unfixed** (B3, B4, B5, B8, B9, B10) with their tracking issues OPEN. B8a received a symptom mitigation in v2.1.121 (corrupt line skip). B11 had symptoms reduced via effort default restoration in v2.1.117. B2a remains possibly fixed but unverified for the Agent SDK code path. P1 (telemetry→TTL downgrade) is the only preliminary finding confirmed fixed (v2.1.108).
 
 ---
 
