@@ -85,6 +85,49 @@ Multiple users report that adaptive thinking produces insufficient reasoning. Th
 - **Mitigation:** [@cnighswonger](https://github.com/cnighswonger) released [claude-code-cache-fix v2.0.0-beta.4](https://github.com/cnighswonger/claude-code-cache-fix) with `smoosh_normalize` + `smoosh_split` — production-verified by deafsquad: `cache_creation` 940K → **1,704** (99.8% reduction)
 - **Note:** This issue affects **all models**, not just Opus 4.7. It is included here because the 4.7 transition amplifies its impact (adaptive thinking tokens + tokenizer inflation compound on top of cache breakage).
 
+### 2.6 Autocompact Fires at ~195K Despite 1M Context ([#53801](https://github.com/anthropics/claude-code/issues/53801))
+
+> **Added:** May 4, 2026
+
+Despite the v2.1.117 fix for [#52522](https://github.com/anthropics/claude-code/issues/52522) (auto-compact threshold change from 200K to 1M), auto-compaction continues to fire at **~195K tokens** on v2.1.120, using only **19.5% of the 1M context window**.
+
+**Measured (v2.1.120, Opus 4.7 1M, `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=40`):**
+
+| Trigger | preTokens | % of 1M |
+|---------|-----------|---------|
+| auto | 196,512 | 19.65% |
+| auto | 194,360 | 19.44% |
+| auto | 194,159 | 19.42% |
+| auto | 195,854 | 19.59% |
+| auto | 194,591 | 19.46% |
+
+Data extracted from JSONL `compact_boundary` records. The tight band (4,353 token range, ~2.2% spread) indicates a **deterministic 200K internal threshold** that ignores both the model's 1M capacity and the user's 40% override setting.
+
+- **Impact:** Users paying for 1M context effectively get ~195K before compaction destroys session state. After compaction, technical decisions and earlier reasoning are lost — the model cannot reference pre-compaction information.
+- **Status:** #53801 closed as duplicate of #36381 and #52519 (both CLOSED). Whether the root cause is resolved remains unclear — the data was collected on v2.1.120, **post** the v2.1.117 fix.
+- **Evidence strength:** **STRONG** — JSONL data extraction, precise timestamps, 6 consecutive reproductions in a single session.
+
+### 2.7 xhigh Effort Regression — medium Currently Better ([#55301](https://github.com/anthropics/claude-code/issues/55301))
+
+> **Added:** May 4, 2026
+
+Proxy-measured evidence suggests `xhigh` effort on Opus 4.7 experienced a **quality regression on May 1, 2026** — with `medium` effort producing better results on the same model in the same session.
+
+**Measured via [claude-hooks](https://github.com/mann1x/claude-hooks) transparent proxy (SQLite, stellaraccident canary phrases):**
+
+| Date | Effort | Requests | ownership-dodging /1k |
+|------|--------|----------|----------------------|
+| Apr 28 | xhigh | 2,316 | 6.04 |
+| Apr 29 | xhigh | 2,640 | 5.30 |
+| Apr 30 | xhigh | 3,050 | 4.59 |
+| **May 1** | **xhigh** | **309** | **29.13** (6x spike) |
+| May 1 | medium | 486 | **2.06** |
+
+Same model delivered (`claude-opus-4-7`), same service tier, same beta features, 98% cache hit rate. The quality regression was **effort-specific** — switching to `medium` in the same session cleared all symptoms immediately.
+
+- **Evidence strength:** **MODERATE** — rigorous proxy methodology, but **n=1 reporter, single-day anomaly** (May 1 only). Could be a transient serving-side issue rather than a persistent regression. Needs independent verification before relying on this finding.
+- **Interaction with Section 1.4:** If confirmed, this would invert the effort cost-benefit calculation: `xhigh` would be both more expensive and worse than `medium` on certain days.
+
 ---
 
 ## 3. Independent Measurements
@@ -295,6 +338,8 @@ This section documents known gaps in the evidence base. All claims in this docum
 | E3 | No official Anthropic response to cost increase | High | Anthropic acknowledged #49302 inconsistency but has not addressed the 2.4x overhead, model pin bypass, or silent switch. We cannot confirm whether these are bugs or intended behavior changes. |
 | E4 | No large-scale controlled experiment | High | All community measurements are observational (no randomized A/B with controlled workloads). Our self-benchmark is the closest to controlled but used non-representative conditions. A definitive answer requires Anthropic to publish metering methodology. |
 | E5 | Long-context retrieval regression not independently verified | Moderate | The 91.9% → 59.2% figures are from HN discussion of the model card, not from our own testing. We have not run MRCR or equivalent retrieval benchmarks on 4.7. The model card itself is 221 pages and has not been independently audited. However, the regression is directionally consistent with community reports of degraded performance on large codebases. |
+| E6 | Autocompact 195K threshold persists post-fix (#53801) | Moderate | Single reporter on v2.1.120 with JSONL data extraction (strong methodology). Issue closed as duplicate — unclear if truly fixed in later versions. Added May 4. |
+| E7 | xhigh effort regression (#55301) | High | Single reporter, single-day anomaly (May 1). Could be transient serving-side issue. Rigorous proxy methodology but needs independent verification before acting on it. Added May 4. |
 
 ---
 
@@ -310,8 +355,11 @@ Upgrade to Opus 4.7 / newer CC versions when **all** of the following are confir
 - [ ] Korean tokenizer penalty measured and acceptable (<1.5x on typical CLAUDE.md + conversation)
 - [ ] Long-context retrieval regression addressed (91.9% → 59.2% at 256K context, 78.3% → 32.2% at 1M context per system card)
 - [x] ~~Effort default~~ — **FIXED** (v2.1.117, April 21 — Pro/Max subscribers)
+- [x] ~~Bash classifier hardcoded to 4.6~~ — [#49618](https://github.com/anthropics/claude-code/issues/49618) **CLOSED** (April 20) *(added May 4)*
+- [x] ~~Context startup bloat~~ — [#49593](https://github.com/anthropics/claude-code/issues/49593) **CLOSED** (April 22) *(added May 4)*
 - [ ] [#52502](https://github.com/anthropics/claude-code/issues/52502) — Subagent model pin respected (billing impact) *(added April 24)*
 - [ ] [#52534](https://github.com/anthropics/claude-code/issues/52534) — Effort override bypass resolved (`unpinOpus47LaunchEffort`) *(added April 24)*
+- [ ] [#53801](https://github.com/anthropics/claude-code/issues/53801) — Autocompact fires at ~195K despite 1M context (v2.1.120, post v2.1.117 fix) *(added May 4)*
 
 **Monitoring resources:**
 - [CC changelog](https://code.claude.com/docs/en/changelog) — check each release for #49302/#49503 fixes
