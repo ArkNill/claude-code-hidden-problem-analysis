@@ -194,6 +194,22 @@ All three documented GrowthBook gates are off, yet clearing occurs. Confirmed lo
 
 **What's needed:** `DISABLE_MICROCOMPACT=true` — a dedicated env var to disable microcompact independently.
 
+## CHANGELOG cross-reference — compaction & context surface (v2.1.107–v2.1.140)
+
+> Added May 13, 2026. The baseline tests in this file were on v2.1.91. Here's what the CHANGELOG has shipped since then that's adjacent to compaction. None of it touches the silent-stripping mechanism in B4 or the budget cap in B5 — the changes are on the display, the compaction-prompt text, or the auto-compact threshold.
+
+The releases worth flagging:
+
+- **v2.1.107** removes the `/context` rendering grid (~1.6k tokens saved). Cosmetic.
+- **v2.1.108** rewrites the compaction prompt to ask the model to preserve sensitive user instructions. Affects what survives a `/compact`, not what microcompact silently strips between turns.
+- **v2.1.117** raises Opus 4.7's auto-compact threshold from ~200K to ~1M (CC was previously computing against a 200K window). This is the big one — sessions grow ~5x before compact, per-turn cost grows with them. Full analysis in [17_OPUS-47-POSTMORTEM-ANALYSIS.md §3.3](17_OPUS-47-POSTMORTEM-ANALYSIS.md#33-auto-compact-threshold-change-52522). Doesn't touch B4.
+- **v2.1.120** changes how auto-compact mode displays (`auto` instead of a misleading token count). Display only.
+- **v2.1.121** fixes a `/context` Free space / Messages display inconsistency. Display only.
+- **v2.1.126** fixes premature auto-compact termination on long-context models. Affects the auto-compact flow, not per-turn microcompact stripping. Open question: does it interact with B4 event counts on v2.1.126+ sessions? Not verified.
+- **v2.1.127–v2.1.140**: nothing compaction-related.
+
+Status against the tracked bugs hasn't changed. B4 (microcompact silent stripping, #42542) is still server-controlled via GrowthBook with no client-side fix in the public changelog. B5 (tool result budget cap) hasn't been mentioned in any release in this range. The #53801 autocompact-at-195K thread — v2.1.117 raised the Opus 4.7 ceiling but the underlying threshold logic is unchanged, and the v2.1.126 long-context termination fix may interact but hasn't been independently checked.
+
 ## Contributing Data
 
 If you're experiencing silent context stripping, please share:
