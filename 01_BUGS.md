@@ -2,7 +2,7 @@
 
 # Bug Details — Technical Root Cause Analysis
 
-> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 9, 10 remain **unfixed** as of v2.1.126. Bug 8a received a **symptom mitigation** in v2.1.121 (corrupt line skip on resume; root cause unfixed). Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 symptoms **reduced** via effort default restoration (v2.1.117). P1 (telemetry→TTL downgrade) **fixed** in v2.1.108 (community verified). P3 ("Output efficiency" prompt) **observed removed** between v2.1.98 and v2.1.101. **18+ releases (v2.1.92–v2.1.126) over 34 days introduced zero fixes for six of the nine unfixed bugs (B3-B5, B8, B9, B10).** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: May 4, 2026)
+> Bugs 1-2 (cache layer) are **fixed** in v2.1.91. Bugs 3-5, 8, 9, 10 remain **unfixed** as of v2.1.140. Bug 8a received a **symptom mitigation** in v2.1.121 (corrupt line skip on resume; root cause unfixed). Bug 2a status is **possibly fixed** (v2.1.101 resume fixes may cover the SDK path). Bug 11 symptoms **reduced** via effort default restoration (v2.1.117). P1 (telemetry→TTL downgrade) **fixed** in v2.1.108 (community verified). P3 ("Output efficiency" prompt) **observed removed** between v2.1.98 and v2.1.101. **32+ releases (v2.1.92–v2.1.140) over 43 days introduced zero fixes for six of the nine unfixed bugs (B3-B5, B8, B9, B10).** See [Changelog Cross-Reference](#changelog-cross-reference-v2192v21101) below. (Latest: May 13, 2026)
 >
 > Bugs 1-2 were identified through community reverse engineering ([Reddit](https://www.reddit.com/r/ClaudeAI/s/AY2GHQa5Z6)). Bugs 3-5 and 8 were discovered through proxy-based testing on April 2-3. Bugs 8a-11 and 2a were identified through community-wide issue/comment analysis and fact-checking on April 6-9, 2026.
 
@@ -450,7 +450,21 @@ Eight releases shipped between v2.1.91 (our last benchmark) and v2.1.101 (latest
 | **P2** TTL Dual Tiers | Server-side — no client changelog expected. | ❓ Unknown (unchanged) |
 | **P3** "Output Efficiency" prompt | No change — remains removed. | 🔄 **OBSERVED REMOVED** (unchanged) |
 
-**Cumulative summary (v2.1.92–v2.1.126, 34 days, 18+ releases):** Of the original nine unfixed bugs (B3–B5, B8, B8a, B9, B10, B11, B2a), **six remain confirmed unfixed** (B3, B4, B5, B8, B9, B10) with their tracking issues OPEN. B8a received a symptom mitigation in v2.1.121 (corrupt line skip). B11 had symptoms reduced via effort default restoration in v2.1.117. B2a remains possibly fixed but unverified for the Agent SDK code path. P1 (telemetry→TTL downgrade) is the only preliminary finding confirmed fixed (v2.1.108).
+**v2.1.127–v2.1.140 (added May 13):**
+
+Fourteen releases between May 2 and May 13. Most of the activity went into Agent view, `/goal`, `/scroll-speed`, the new Hook exec form, `worktree.baseRef`, and `CLAUDE_CODE_SESSION_ID`. None of them touch the tracked bugs. Searched the range for every tracked issue number (#40584, #42542, #41346, #40363, #49302, #49503, #49541, #49585, #52502, #52534) — zero hits.
+
+B3, B4, B5, B8, B9, B10 still unfixed. B8a still sitting on the v2.1.121 symptom mitigation. B2a still possibly fixed but Agent SDK path unverified.
+
+The one B-bug that gets a mention is B11: v2.1.139 extends the `high` effort default to Opus 4.6 and Sonnet 4.6 Pro/Max subscribers. That's the same lever pulled in v2.1.117, now applied to more tiers. The underlying adaptive-thinking bypass is untouched.
+
+P1 (telemetry → TTL) is the awkward one. Still fixed in the v2.1.108 sense, but the telemetry surface is creeping back: v2.1.136 re-enabled feedback survey OTEL, and v2.1.139 added two new subagent headers (`x-claude-code-agent-id`, `x-claude-code-parent-agent-id`). Nothing in this is a P1 regression yet — but it's worth watching the next few releases before declaring the fix permanent.
+
+### v2.1.139 Bash permission bypass — new tracked issue
+
+[**#58424**](https://github.com/anthropics/claude-code/issues/58424). On v2.1.139, the Bash permission gate doesn't fire for compound commands like `rm -rf … && … | … ; echo …`. No prompt, no allow-list match, just runs. This is the first new client-side security regression since the v2.1.98 backslash-escape wave, and it goes through command composition rather than escaping. Anything that builds a compound shell line — agent tooling, extensions, scripts — can run destructive operations without the user seeing anything. Tracking until resolved.
+
+**Cumulative (v2.1.92–v2.1.140, 43 days, 32+ releases):** Six bugs unfixed (B3, B4, B5, B8, B9, B10). One symptom mitigation (B8a, v2.1.121). One symptom reduction extended (B11, v2.1.117 → v2.1.139). B2a possibly fixed, Agent SDK path still unverified. P1 fixed in v2.1.108 with a footnote watch. One new regression added: #58424.
 
 ---
 
