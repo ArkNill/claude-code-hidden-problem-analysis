@@ -10,7 +10,22 @@
 
 ---
 
-## Latest Update (May 4)
+## Latest Update (May 13)
+
+### May 13 — Stability test on v2.1.139 + Opus 4.7, CHANGELOG through v2.1.140, behavioral patterns
+
+**[01_BUGS.md](01_BUGS.md)** — Cross-reference taken from v2.1.126 to **v2.1.140** (14 more releases). Searched the range for every tracked issue number and the topic keywords that usually catch fixes — zero hits. **Six bugs still unfixed across 32+ releases and 43 days** (B3, B4, B5, B8, B9, B10). B11 got a sideways extension in v2.1.139 (`high` effort default now applies to Opus 4.6 and Sonnet 4.6 Pro/Max — same lever as v2.1.117, more tiers, underlying adaptive-thinking bypass untouched). P1 (telemetry → TTL) still fixed in the v2.1.108 sense but the surface is creeping back — v2.1.136 re-enabled feedback survey OTEL, v2.1.139 added two new subagent telemetry headers. Footnoted, not yet a regression.
+
+**New tracked regression: [#58424](https://github.com/anthropics/claude-code/issues/58424)** — On v2.1.139 the Bash permission gate doesn't fire for compound commands like `rm -rf … && … | … ; echo …`. No prompt, no allow-list match, just runs. First permission-system regression since the v2.1.98 backslash-escape wave.
+
+**[16_OPUS-47-ADVISORY.md](16_OPUS-47-ADVISORY.md)** — Three new sections from a week of daily-driving v2.1.139 + Opus 4.7:
+- **§2.8 Sycophancy / agreement bias** ([#45502](https://github.com/anthropics/claude-code/issues/45502), OPEN). Training defaults override the "don't be sycophantic" instruction. Issue frames it as a safety problem for users on financial, legal, or medical material — premature "done" is harmful, not just irritating. Behavioral rules in CLAUDE.md help maybe a third of the time before being absorbed. LOW–MODERATE evidence.
+- **§2.9 Tunnel-vision / narrow-scope execution.** Convergent OPEN issues ([#58356](https://github.com/anthropics/claude-code/issues/58356), [#53026](https://github.com/anthropics/claude-code/issues/53026), [#58187](https://github.com/anthropics/claude-code/issues/58187), plus [#55161](https://github.com/anthropics/claude-code/issues/55161) as a temperature signal) and Anthropic's own Opus 4.7 guidance ("takes instructions literally on first read … scope must be stated explicitly") describe the same mechanism. MODERATE evidence.
+- **§2.10 Two more patterns, not cross-validated yet.** Subjectively terser responses with less visible reasoning (partial signal from [#56356](https://github.com/anthropics/claude-code/issues/56356)) and subjective lower token use (contradicted by every external data point — [#52773](https://github.com/anthropics/claude-code/issues/52773), [#51440](https://github.com/anthropics/claude-code/issues/51440), Anthropic's verbosity statement, this repo's own 2.4x measurement; recorded as a perception/measurement gap, not a finding).
+
+**[17_OPUS-47-POSTMORTEM-ANALYSIS.md §3.3](17_OPUS-47-POSTMORTEM-ANALYSIS.md#33-auto-compact-threshold-change-52522)** — Second report on the v2.1.117 threshold change ([#52519](https://github.com/anthropics/claude-code/issues/52519)) frames the same fix from a disclosure angle, distinct from #52522's per-turn measurement. The 5x (per-turn) and 2.4x (Q5h window) numbers reconcile: per-turn cost compounds, the 5h sliding window smooths peaks. Nothing between v2.1.118 and v2.1.140 walks the change back — 1M-tolerant sessions are the new default.
+
+**Upgrade recommendation remains: stay on v2.1.109 with Opus 4.6.** If you do run v2.1.139+ on Opus 4.7, state scope explicitly in every prompt and cross-check critical claims against another model.
 
 ### May 4 — CHANGELOG v2.1.120–126 Cross-Reference + Opus 4.7 Advisory Updates
 
@@ -144,17 +159,17 @@ Transparent proxy (cc-relay) captured `anthropic-ratelimit-unified-*` headers ac
 
 ---
 
-## Current Status (April 22, 2026 — verified through v2.1.119)
+## Current Status (May 13, 2026 — verified through v2.1.140)
 
 ```mermaid
-pie title Bug Status (12 identified, verified through v2.1.119)
+pie title Bug Status (12 identified, verified through v2.1.140)
     "Fixed (B1, B2)" : 2
     "Unfixed (B3-B5, B8-B11, B8a)" : 8
     "Possibly Fixed (B2a)" : 1
     "By Design (Server)" : 1
 ```
 
-Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.119** (latest). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
+Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs remain unfixed through v2.1.140** (latest). B2a (SendMessage resume) **possibly fixed** in v2.1.101 (CLI resume path fixed, SDK path unconfirmed). P3 ("Output efficiency" prompt) **observed removed** (self-verified). One new client-side regression on v2.1.139: [#58424](https://github.com/anthropics/claude-code/issues/58424) Bash compound permission bypass. Two new Opus 4.7 behavioral patterns tracked in 16-Advisory (§2.8 sycophancy, §2.9 tunnel-vision). Changelog cross-reference: [01_BUGS.md § Changelog Cross-Reference](01_BUGS.md#changelog-cross-reference-v2192v21101).
 
 | Bug | What It Does | Impact | Status | Details |
 |-----|-------------|--------|--------|---------|
@@ -178,6 +193,7 @@ Cache regression (v2.1.89) is **fixed** in v2.1.90-91. **Eight client-side bugs 
 3. **Don't use `--resume` or `--continue`** — replays full context as billable input
 4. **Start fresh sessions periodically** — the 200K tool result cap (B5) silently truncates older results
 5. **Avoid `/dream` and `/insights`** — background API calls that drain silently
+6. **If you must run v2.1.139+ on Opus 4.7** — state scope explicitly in every prompt (literal instruction following, see [§2.9](16_OPUS-47-ADVISORY.md#29-tunnel-vision--narrow-scope-execution)), and cross-check critical claims against another model since disposition-level pushback gets absorbed (see [§2.8](16_OPUS-47-ADVISORY.md#28-sycophancy--agreement-bias-45502))
 
 See [09_QUICKSTART.md](09_QUICKSTART.md) for setup guide and self-diagnosis. Full proxy dataset: **[13_PROXY-DATA.md](13_PROXY-DATA.md)**.
 
@@ -252,18 +268,19 @@ She [recommended](https://x.com/lydiahallie/status/2039800718371307603) using So
 
 | File | What | Updated |
 |------|------|---------|
-| **[17_OPUS-47-POSTMORTEM-ANALYSIS.md](17_OPUS-47-POSTMORTEM-ANALYSIS.md)** | Postmortem cross-check: CHANGELOG transparency analysis, post-postmortem issues (v2.1.116+), effort 48-day Pro/Max gap, 36-claim verification matrix | Apr 24 |
-| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 3 preliminary (P1-P3, P4 removed) + changelog cross-reference (v2.1.92-108) | Apr 15 |
+| **[17_OPUS-47-POSTMORTEM-ANALYSIS.md](17_OPUS-47-POSTMORTEM-ANALYSIS.md)** | Postmortem cross-check: CHANGELOG transparency, post-postmortem issues (v2.1.116+), effort 48-day Pro/Max gap, 36-claim verification. §3.3 now reconciles three vantage points on the v2.1.117 fix (#52522 per-turn, #52519 disclosure, repo Q5h) | May 13 |
+| **[16_OPUS-47-ADVISORY.md](16_OPUS-47-ADVISORY.md)** | Opus 4.7 advisory: 2.4x Q5h burn, model pin bypass, cache metering, long-context retrieval regression, autocompact ~195K, xhigh regression. §2.8 sycophancy (#45502), §2.9 tunnel-vision cluster, §2.10 perception-gap footnote | May 13 |
+| **[01_BUGS.md](01_BUGS.md)** | All 11 bugs (B1-B11, B2a, B8a) + 3 preliminary + changelog cross-reference through v2.1.140 + new tracked regression #58424 | May 13 |
 | **[09_QUICKSTART.md](09_QUICKSTART.md)** | Quick fix guide — Option A (v2.1.91+) vs Option B (v2.1.63 downgrade), npm vs standalone, diagnosis | Apr 9 |
 | **[07_TIMELINE.md](07_TIMELINE.md)** | 14-month chronicle (Phase 1-9) + April 6-9 community acceleration + Anthropic response | Apr 9 |
-| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | Apr 16 |
+| **[08_UPDATE-LOG.md](08_UPDATE-LOG.md)** | Daily investigation log + changelog cross-reference | May 13 |
 | **[10_ISSUES.md](10_ISSUES.md)** | 91+ tracked issues + community tools + contributors | Apr 9 |
 | **[13_PROXY-DATA.md](13_PROXY-DATA.md)** | Full proxy dataset (45,884 requests, 320 sessions, April 1–22) with Mermaid visualizations | Apr 22 |
-| **[14_DATA-SOURCES.md](14_DATA-SOURCES.md)** | Data label matrix (`ubuntu-1-stock` / `ubuntu-1-override` / `win-1-stock`), reconciliation with earlier "single machine" figures, and internal database schema overview | Apr 16 |
-| **[15_ENV-BREAKDOWN.md](15_ENV-BREAKDOWN.md)** | Per-environment cache_read ratios (pre/post April 10, daily trend), Max 20x vs Max 5x model dispatch comparison, tier-dependent Haiku share finding | Apr 16 |
+| **[14_DATA-SOURCES.md](14_DATA-SOURCES.md)** | Data label matrix (`ubuntu-1-stock` / `ubuntu-1-override` / `win-1-stock`), reconciliation with earlier "single machine" figures, and internal database schema overview | May 13 |
+| **[15_ENV-BREAKDOWN.md](15_ENV-BREAKDOWN.md)** | Per-environment cache_read ratios (pre/post April 10, daily trend), Max 20x vs Max 5x model dispatch comparison, tier-dependent Haiku share finding | May 13 |
 | **[02_RATELIMIT-HEADERS.md](02_RATELIMIT-HEADERS.md)** | Dual 5h/7d window architecture, per-1% cost, thinking token blind spot, fallback-percentage extended data | Apr 22 |
 | **[03_JSONL-ANALYSIS.md](03_JSONL-ANALYSIS.md)** | Session log analysis: PRELIM inflation, subagent costs, lifecycle curve, proxy cross-validation | Apr 6 |
-| **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) | Apr 15 |
+| **[05_MICROCOMPACT.md](05_MICROCOMPACT.md)** | Deep dive: silent context stripping (Bug 4) + tool result budget (Bug 5) + compaction CHANGELOG cross-ref through v2.1.140 | May 13 |
 | **[04_BENCHMARK.md](04_BENCHMARK.md)** | npm vs standalone benchmark with raw per-request data | Apr 3 |
 | **[06_TEST-RESULTS-0403.md](06_TEST-RESULTS-0403.md)** | April 3 integrated test results — all bugs verified | Apr 3 |
 | **[11_USAGE-GUIDE.md](11_USAGE-GUIDE.md)** | Essential usage guide — sessions, context, CLAUDE.md, token-saving | Apr 8 |
