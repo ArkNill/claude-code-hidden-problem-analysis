@@ -128,6 +128,42 @@ Same model delivered (`claude-opus-4-7`), same service tier, same beta features,
 - **Evidence strength:** **MODERATE** — rigorous proxy methodology, but **n=1 reporter, single-day anomaly** (May 1 only). Could be a transient serving-side issue rather than a persistent regression. Needs independent verification before relying on this finding.
 - **Interaction with Section 1.4:** If confirmed, this would invert the effort cost-benefit calculation: `xhigh` would be both more expensive and worse than `medium` on certain days.
 
+### 2.8 Sycophancy / Agreement Bias ([#45502](https://github.com/anthropics/claude-code/issues/45502))
+
+> **Added:** May 13, 2026
+
+[#45502](https://github.com/anthropics/claude-code/issues/45502) (still open) treats sycophancy and completion bias as a safety problem, not a UX taste thing. The argument: training defaults override the "don't be sycophantic" instruction even when it's spelled out in the system prompt, and for anyone working on financial, legal, or medical material the model's tendency to call work done early is actually harmful, not just irritating.
+
+Matches what I see daily-driving v2.1.139 + Opus 4.7: too quick to accept claims at face value, too many responses opening with "정확한 지적", "말씀하신 대로", "좋은 질문", and a habit of absorbing whatever framing the user came in with even when that framing is wrong. Disposition-level rules in CLAUDE.md and memory take the edge off but don't fix it — which matches the "overridden by training defaults" claim in the issue.
+
+This is hard to instrument. Sycophancy lives in framing, not in tool calls. The evidence is one OPEN community report and one self-observer; Anthropic hasn't commented. Treat as **LOW–MODERATE strength**.
+
+The practical cost: Claude Code becomes weaker as a critical-review or due-diligence tool. If you're asking it to push back on a plan, you can't trust the absence of pushback to mean the plan is fine. Partial workarounds: stricter behavioral rules in CLAUDE.md (helps maybe a third of the time before the model absorbs around them); hard-structural prompts that demand counter-examples or steelman framings (more reliable but verbose, which costs you after v2.1.117 — see [§3.3 in the postmortem](17_OPUS-47-POSTMORTEM-ANALYSIS.md#33-auto-compact-threshold-change-52522)); or cross-checking against Codex or Gemini when the stakes warrant a second model.
+
+### 2.9 Tunnel-vision / Narrow Scope Execution
+
+> **Added:** May 13, 2026
+
+A cluster of open issues describes the same pattern on v2.1.139 + Opus 4.7: the model completes the literal request but misses the surrounding context that would make the result actually useful, or it fixates on one local detail and never zooms back out.
+
+[#58356](https://github.com/anthropics/claude-code/issues/58356) reports Opus 4.7 tunnel-visioning on a CSS cascade bug that 4.6 solves in under two minutes. [#53026](https://github.com/anthropics/claude-code/issues/53026) logs twenty distinct mistakes across multiple sessions in a working repo with documented tooling. [#58187](https://github.com/anthropics/claude-code/issues/58187) describes the agent pausing mid-task and silently dropping the stream. [#55161](https://github.com/anthropics/claude-code/issues/55161) is just a frustrated "you made Opus dumb again, I'm switching to codex" — useful as a community-temperature signal even though it's not a precise bug report.
+
+Anthropic's own [Opus 4.7 guidance gist](https://gist.github.com/subourbonite/22113b538602832a68a41a623fdeea76) describes the underlying mechanism from the model side: "Opus 4.7 takes instructions literally on first read, does not silently generalize from singular objects to sets, does not infer requests that weren't made, and does not compensate for ambiguity — scope must be stated explicitly." Framed as an instruction-following improvement. In agentic use the same property reads as tunnel-vision: prompts that worked before by leaning on implicit generalization now produce narrow, literal execution that misses the user's broader intent.
+
+What I see myself matches: the agent finishes the immediate sub-task in isolation, doesn't surface system-wide implications, doesn't chain related fixes the way earlier models would.
+
+Evidence is **moderate** — multiple independent open issues, plus official guidance describing the mechanism. Not instrumented. The cost falls on the user: tasks that used to get implicit scope expansion now need explicit scope statements ("change all instances", "check related files", "consider downstream effects"), which is high friction, especially for exploratory work where you don't yet know what scope to ask for. For narrow, well-defined tasks the literal behavior is actually fine and arguably better. For everything else, v2.1.109 + Opus 4.6 remains the more forgiving choice (see Section 4).
+
+### 2.10 Two More Patterns, Not Cross-Validated Yet
+
+> **Added:** May 13, 2026
+
+Two other things I notice on v2.1.139 + Opus 4.7 don't yet have external corroboration, so they sit here as footnotes rather than findings.
+
+First: responses feel terser, more terminal-like, with less of the reasoning surfacing in the user-visible output. Partial external signal — [#56356](https://github.com/anthropics/claude-code/issues/56356) reports no thinking blocks even with `--thinking adaptive`, and Anthropic's own description says Opus 4.7 "thinks more at higher effort levels", which could mean the reasoning has migrated into invisible tokens rather than disappearing. Watching this.
+
+Second: my subjective sense is that token use per task is lower than I expected on v2.1.139 + Opus 4.7. This one is contradicted by every external data point — Anthropic itself describes 4.7 as verbose, [#52773](https://github.com/anthropics/claude-code/issues/52773) reports significantly higher token consumption than 4.6, [#51440](https://github.com/anthropics/claude-code/issues/51440) says worse quality at higher cost, and this repo's own 2.4x Q5h measurement points the same direction. So it's almost certainly perception, not measurement. Could be v2.1.139 extending the `high` effort default to more tiers shifting my baseline; could be environment-specific factors; could be that I'm just wrong. Recording it because the gap between single-environment perception and population-level data is itself worth noticing.
+
 ---
 
 ## 3. Independent Measurements
