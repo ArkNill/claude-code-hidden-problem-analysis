@@ -6,6 +6,37 @@
 
 ---
 
+## May 13, 2026 — v2.1.139 + Opus 4.7 stability test, CHANGELOG through v2.1.140, behavioral patterns
+
+Upgraded the daily driver from v2.1.109 + Opus 4.6 to v2.1.139 + Opus 4.7 on May 12 and started watching it against the existing Opus 4.7 advisory. Window runs through about May 26.
+
+While I was at it, took the CHANGELOG cross-reference forward fourteen releases from v2.1.126 to v2.1.140. Searched the range for every tracked issue number (#40584, #42542, #41346, #40363, #49302, #49503, #49541, #49585, #52502, #52534) and the topic keywords that usually catch fixes (context bloat, microcompact, auto-compact, JSONL, duplicate read, synthetic message, tool result, compaction, session resume, model pin). Zero hits. None of the tracked bugs got a fix in this range.
+
+Two new behavioral patterns made it past the evidence threshold this round. Both have multiple OPEN issues converging with what I see while using v2.1.139 + Opus 4.7 daily:
+
+- **Sycophancy / agreement bias** ([#45502](https://github.com/anthropics/claude-code/issues/45502), OPEN). Training defaults override the "don't be sycophantic" instruction even when it's spelled out. Framed in the issue as a safety problem for users working on financial, legal, or medical material.
+- **Tunnel-vision / narrow-scope execution** ([#58356](https://github.com/anthropics/claude-code/issues/58356), [#53026](https://github.com/anthropics/claude-code/issues/53026), [#58187](https://github.com/anthropics/claude-code/issues/58187), plus the community-temperature signal in [#55161](https://github.com/anthropics/claude-code/issues/55161)). Anthropic's own [Opus 4.7 guidance gist](https://gist.github.com/subourbonite/22113b538602832a68a41a623fdeea76) describes the underlying mechanism — Opus 4.7 takes instructions literally and does not silently generalize.
+
+Both go into the advisory as §2.8 and §2.9. Evidence is LOW–MODERATE — community report + self-observation, neither side instrumented. Sycophancy in particular is hard to instrument because it lives in framing, not in tool calls.
+
+Also worth noting: my own subjective sense that v2.1.139 + Opus 4.7 consumes fewer tokens than I expected. That one runs directly into Anthropic's own description of Opus 4.7 as verbose, [#52773](https://github.com/anthropics/claude-code/issues/52773) reporting significantly higher token use than 4.6, [#51440](https://github.com/anthropics/claude-code/issues/51440) on cost-quality regression, and this repo's 2.4x Q5h measurement — all pointing the other way. Recorded as a perception/measurement gap in §2.10, not as a finding.
+
+The v2.1.117 thread crystallizes in another direction. A second report, [#52519](https://github.com/anthropics/claude-code/issues/52519), frames the threshold change as undocumented subscriber-cost impact rather than as a usage-pattern observation like #52522. Same change, two angles. The 5x (per-turn, #52522) and 2.4x (Q5h window, this repo) numbers are reconcilable — per-turn cost compounds, the sliding window smooths peaks. Nothing between v2.1.118 and v2.1.140 walks the change back. The 1M-tolerant session is the new default. Full update in [17_POSTMORTEM §3.3](17_OPUS-47-POSTMORTEM-ANALYSIS.md#33-auto-compact-threshold-change-52522).
+
+One new client-side regression worth tracking: [**#58424**](https://github.com/anthropics/claude-code/issues/58424). On v2.1.139 the Bash permission gate doesn't fire for compound commands like `rm -rf … && … | … ; echo …`. No prompt, no allow-list match, just runs. First new permission-system regression since the v2.1.98 backslash-escape wave. Added to 01_BUGS as a tracked item.
+
+The B-bug tracking is in [01_BUGS.md](01_BUGS.md). Six bugs unfixed across 32+ releases and 43 days (v2.1.92 → v2.1.140). One B-bug got a sideways mention: v2.1.139 extends the `high` effort default to Opus 4.6 and Sonnet 4.6 Pro/Max — same lever as v2.1.117, more tiers. Underlying adaptive-thinking bypass untouched. P1 (telemetry → TTL) is still fixed but the surface is creeping back — v2.1.136 re-enabled feedback survey OTEL, v2.1.139 added two new subagent headers. Not a regression yet, watching it.
+
+Files touched: [README.md](README.md), [01_BUGS.md](01_BUGS.md), [16_OPUS-47-ADVISORY.md](16_OPUS-47-ADVISORY.md), [17_OPUS-47-POSTMORTEM-ANALYSIS.md](17_OPUS-47-POSTMORTEM-ANALYSIS.md), [05_MICROCOMPACT.md](05_MICROCOMPACT.md), [14_DATA-SOURCES.md](14_DATA-SOURCES.md), [15_ENV-BREAKDOWN.md](15_ENV-BREAKDOWN.md).
+
+### What actually shipped in v2.1.127–v2.1.140
+
+Headline release is v2.1.139: Agent view, `/goal` and `/scroll-speed`, the new Hook `args: string[]` exec form, `continueOnBlock` for PostToolUse, settings symlink reload fix, remote MCP reconnect retry rolled out to everyone, two new subagent telemetry headers (`x-claude-code-agent-id`, `x-claude-code-parent-agent-id`), and the `high` effort default extended to Opus 4.6 and Sonnet 4.6 Pro/Max subscribers. v2.1.140 patches a Read tool offset validation bug, fixes `/goal` hanging when `disableAllHooks` or `allowManagedHooksOnly` is set, and makes Agent tool's `subagent_type` matching case- and separator-insensitive.
+
+The supporting releases are mostly small. v2.1.137 fixes Windows extension activation. v2.1.136 re-enables feedback survey OTEL and patches MCP server settings. v2.1.133 adds `worktree.baseRef` (`fresh` or `head`) and sandbox path settings. v2.1.132 introduces `CLAUDE_CODE_SESSION_ID` and the alternate-screen renderer opt-out. v2.1.131 patches VS Code Windows activation and Mantle auth. v2.1.129 adds `--plugin-url`, synchronous output force, and package manager auto-update. v2.1.128 brings random `/color`, MCP tool count display, and `.zip` plugin archive support. v2.1.127, v2.1.130, v2.1.134, v2.1.135, and v2.1.138 have no public entries.
+
+---
+
 ## May 4, 2026 — CHANGELOG v2.1.120–126 Cross-Reference + Opus 4.7 Advisory Updates
 
 **Focus:** Extend CHANGELOG cross-reference to v2.1.126 (latest), verify all tracked GitHub issues, add new Opus 4.7 findings.

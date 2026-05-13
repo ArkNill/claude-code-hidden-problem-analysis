@@ -75,6 +75,8 @@ Assistant turns whose `model_served` field (extracted from `message.model` in th
 | `ubuntu-1-override` | 114,456 (77.88%) | 31,984 (**21.76%**) | 443 (0.30%) | 84 (0.06%) |
 | `win-1-stock` | 747 (83.46%) | 1 (**0.11%**) | 63 (7.04%) | 84 (9.39%) |
 
+> Table is the April baseline. Sessions on `ubuntu-1-override` after 2026-05-12 carry `claude-opus-4-7` as well, sometimes resolving to the `claude-opus-4-7[1m]` variant — [#53031](https://github.com/anthropics/claude-code/issues/53031) covers the silent switch between the two. Will recompute with the May window once the stability run ends around May 26.
+
 Three observations.
 
 - **Haiku dispatch rate differs by plan tier** by a factor of roughly 190× in the current samples (20.77% on Max 20x stock vs 0.11% on Max 5x stock). Even granting the small Max 5x sample, the effect size is far beyond what normal dispatcher randomness would produce.

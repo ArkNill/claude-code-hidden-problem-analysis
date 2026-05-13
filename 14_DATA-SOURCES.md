@@ -30,6 +30,12 @@ Every dataset is tagged with the following dimensions. All downstream analyses a
 - **`ubuntu-1-override`** — same machine and account, but an isolated override environment where a GrowthBook flag override has been active since April 10 (per [01_BUGS.md](01_BUGS.md#growthbook-flag-override--controlled-elimination-test-april-1014)). This environment also contains additional private components that are tracked internally for operational purposes but are out of scope for this repository. Used for the B4/B5 elimination test.
 - **`win-1-stock`** — a separate Windows 11 machine running a distinct Max 5x account. Used for research and validation (version fingerprint checks, proxy compatibility, independent testing of public tools such as [`claude-code-cache-fix`](https://github.com/cnighswonger/claude-code-cache-fix)). **Intentionally excluded** from the main publishable body of this repo so that the Max 20x ubuntu-1 analysis remains controlled.
 
+### 2.1.1 Environment update — May 13, 2026
+
+`ubuntu-1-override` was upgraded on 2026-05-12 from v2.1.109 + claude-opus-4-6 to v2.1.139 + claude-opus-4-7, running through ~May 26 as a stability check against the [Opus 4.7 advisory](16_OPUS-47-ADVISORY.md). Earlier rows in the dataset table stay as they were — they record state at the time of each analysis, not current state. Sessions on `ubuntu-1-override` after 2026-05-12 carry the new version and model identifiers.
+
+One adjacent thing worth recording: v2.1.132 added `CLAUDE_CODE_SESSION_ID`, which propagates the session ID through child processes. Cleaner cross-session join in any new proxy collection sweep.
+
 ### 2.2 Shared-storage caveat
 
 Both `~/.claude/projects/` (stock) and `an isolated override environment` (override env) on ubuntu-1 contain JSONL entries dating back to **2026-02-08**. This is because the two directories were historically split from a shared history; the early entries exist in both. For environment-effect analyses (e.g. comparing pre/post override), filter by `ts >= '2026-04-10'` to isolate the period where the two environments diverged meaningfully.
