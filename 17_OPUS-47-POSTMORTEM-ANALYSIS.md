@@ -146,6 +146,14 @@ The postmortem states all three issues were resolved as of v2.1.116 (April 20). 
 
 **Anthropic response:** Issue labeled `duplicate` by automated bot.
 
+**May 13 update.** A second report on the same change, [#52519](https://github.com/anthropics/claude-code/issues/52519), comes at it from a different angle: not that token use went up, but that the subscriber-cost impact was never documented. So there are now two independent reports on v2.1.117 — #52522 measuring per-turn cost, #52519 calling out the disclosure gap — plus our April Q5h-burn measurement on the same change.
+
+The numbers line up: #52522 reports ~5x per-turn, this repo measured ~2.4x averaged over the Q5h window. Per-turn cost compounds inside each session; the 5h sliding window smooths the peaks. Same mechanism, two vantage points.
+
+The chain is straightforward: v2.1.117 lets Opus 4.7 sessions grow to ~1M before auto-compact instead of ~200K. Each turn then reprocesses a larger session, so per-turn cost grows. The 5h quota window fills faster.
+
+Nothing between v2.1.118 and v2.1.140 walks this back. The behavior is the new default. And it gets worse if you stack the Opus 4.7 behavioral patterns on top of it — sycophancy and tunnel-vision both push toward more verbose, more retried turns inside that now-1M-tolerant session. See [16_OPUS-47-ADVISORY.md](16_OPUS-47-ADVISORY.md) §2.8 and §2.9.
+
 ### 3.4 Self-Conversation Safety Issue ([#52228](https://github.com/anthropics/claude-code/issues/52228))
 
 **Claimed:** Model fabricated "Human:" prompts from archived documents and began self-dialogue with unilateral action.
